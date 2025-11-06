@@ -1,0 +1,73 @@
+From a0cf6c3cf0449ac8236055f966fdedcefb8ef5e8 Mon Sep 17 00:00:00 2001
+From: KantaTamura <tkanta496@gmail.com>
+Date: Tue, 4 Nov 2025 06:34:09 +0000
+Subject: [PATCH 1/2] boot: add Kconfig to select boot partition by label
+
+If CONFIG_BOOT_PARTITION_LABEL is set, distro-boot now resolves the boot
+partition by label using `part number ${devtype} ${devnum}
+${bootpartlabel} partnum`
+before falling back to the legacy -bootable scan.
+
+Signed-off-by: KantaTamura <tkanta496@gmail.com>
+---
+ boot/Kconfig                    | 10 ++++++++++
+ include/config_distro_bootcmd.h | 15 ++++++++++++++-
+ 2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/boot/Kconfig b/boot/Kconfig
+index 7c84cb87c56..a4d45827c04 100644
+--- a/boot/Kconfig
++++ b/boot/Kconfig
+@@ -822,6 +822,16 @@ config DISTRO_DEFAULTS
+ 	  Select this to enable various options and commands which are suitable
+ 	  for building u-boot for booting general purpose Linux distributions.
+ 
++config BOOT_PARTITION_LABEL
++	string "Boot partition label for distro boot"
++	depends on DISTRO_DEFAULTS
++	help
++	  If set (e.g. "bootm" or "bootg"), distro-boot resolves the boot
++	  partition by label first:
++	    part number ${devtype} ${devnum} ${bootpartlabel} partnum
++	  and falls back to the legacy '-bootable' scan if not found.
++	  Use together with GPT labels (enable EFI_PARTITION for GPT).
++
+ menu "Boot timing"
+ 
+ config BOOTSTAGE
+diff --git a/include/config_distro_bootcmd.h b/include/config_distro_bootcmd.h
+index 2a136b96a6d..454fb666e8b 100644
+--- a/include/config_distro_bootcmd.h
++++ b/include/config_distro_bootcmd.h
+@@ -471,6 +471,19 @@
+ #define BOOTENV_SHARED_EXTENSION
+ #endif
+ 
++#ifdef CONFIG_BOOT_PARTITION_LABEL
++#define SCAN_BOOT_PART \
++		"setenv bootpartnum; " \
++		"if part number ${devtype} ${devnum} " CONFIG_BOOT_PARTITION_LABEL " bootpartnum; then " \
++			"setenv devplist ${bootpartnum}; " \
++		"else " \
++			"part list ${devtype} ${devnum} -bootable devplist; " \
++		"fi; "
++#else
++#define SCAN_BOOT_PART \
++		"part list ${devtype} ${devnum} -bootable devplist; "
++#endif
++
+ #define BOOTENV_DEV_NAME(devtypeu, devtypel, instance, ...) \
+ 	BOOTENV_DEV_NAME_##devtypeu(devtypeu, devtypel, instance, ## __VA_ARGS__)
+ #define BOOTENV_BOOT_TARGETS \
+@@ -538,7 +551,7 @@
+ 		"\0"                                                      \
+ 	\
+ 	"scan_dev_for_boot_part="                                         \
+-		"part list ${devtype} ${devnum} -bootable devplist; "     \
++		SCAN_BOOT_PART \
+ 		"env exists devplist || setenv devplist 1; "              \
+ 		"for distro_bootpart in ${devplist}; do "                 \
+ 			"if fstype ${devtype} "                           \
+-- 
+2.51.1
+
