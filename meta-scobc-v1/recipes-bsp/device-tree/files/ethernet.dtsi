@@ -14,6 +14,7 @@
 			reg = <1>;
 			ti,rx-internal-delay = <0x6>; //<DP83867_RGMIIDCTL_1_75_NS>;
 			ti,tx-internal-delay = <0x6>; //<DP83867_RGMIIDCTL_1_75_NS>;
+			ti,dp83867-rxctrl-strap-quirk;
 		};
 	};
 };
