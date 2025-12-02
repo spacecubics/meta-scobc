@@ -1,6 +1,7 @@
 ## bitbake/kas .gitignore
 sources
 build
+.Xil
 
 ## Python .gitignore template
 # Byte-compiled / optimized / DLL files
