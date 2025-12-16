@@ -1,0 +1,7 @@
+header:
+  version: 19
+
+repos:
+  meta-scobc:
+    layers:
+      meta-scobc-dualboot:
