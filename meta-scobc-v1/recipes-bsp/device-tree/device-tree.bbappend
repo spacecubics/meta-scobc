@@ -5,4 +5,5 @@ EXTRA_DT_INCLUDE_FILES:append = " \
     usb.dtsi \
     ethernet.dtsi \
     norflash.dtsi \
+    serial.dtsi \
 "
