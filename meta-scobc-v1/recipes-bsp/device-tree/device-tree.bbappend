@@ -6,4 +6,5 @@ EXTRA_DT_INCLUDE_FILES:append = " \
     ethernet.dtsi \
     norflash.dtsi \
     serial.dtsi \
+    timer.dtsi \
 "
