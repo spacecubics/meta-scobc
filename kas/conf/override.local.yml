@@ -1,0 +1,8 @@
+header:
+  version: 19
+
+repos:
+  meta-scobc:
+    url:
+    branch:
+    path: .
