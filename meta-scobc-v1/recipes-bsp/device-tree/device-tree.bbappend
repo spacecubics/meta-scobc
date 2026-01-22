@@ -10,4 +10,5 @@ EXTRA_DT_INCLUDE_FILES:append = " \
     reset.dtsi \
     can.dtsi \
     i2c.dtsi \
+    spi.dtsi \
 "
