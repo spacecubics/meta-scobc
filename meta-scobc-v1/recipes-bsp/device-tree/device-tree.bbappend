@@ -11,10 +11,6 @@ EXTRA_DT_INCLUDE_FILES:append = " \
     can.dtsi \
     i2c.dtsi \
     spi.dtsi \
-"
-
-EXTRA_DT_INCLUDE_FILES:append = " \
-    pl.dtsi \
     mipi-csi.dtsi \
 "
 
