@@ -15,6 +15,10 @@ IMAGE_INSTALL:append = " \
     spitools \
     i2c-tools \
     can-utils \
+    sysbench \
+    lmbench \
+    phoronix-test-suite \
+    fio \
     "
 
 IMAGE_INSTALL:append = " \
