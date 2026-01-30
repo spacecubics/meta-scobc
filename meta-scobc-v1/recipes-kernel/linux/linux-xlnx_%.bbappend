@@ -1,6 +1,7 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += " \
+    file://scobc-v1.cfg \
     file://0001-mtd-spi-nor-sfdp-introduce-smpt_read_dummy-fixup-hoo.patch \
     file://0002-mtd-spi-nor-sfdp-introduce-smpt_map_id-fixup-hook.patch \
     file://0003-mtd-spi-nor-spansion-SMPT-fixups-for-S25FS-S.patch \
