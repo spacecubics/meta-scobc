@@ -3,6 +3,6 @@
 		compatible = "gpio-restart";
 		gpios = <&gpio1 28 0>;
 		active-delay = <2000>; /* Assert reset pin for 2000 ms */
-		priority = <128>; /* 1 Higher than PSCI reset */
+		priority = <130>; /* 1 Higher than PSCI reset(129) */
 	};
 };
