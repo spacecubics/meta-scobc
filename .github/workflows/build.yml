@@ -1,0 +1,121 @@
+name: Build
+on: pull_request
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+
+    runs-on: runs-on=${{ github.run_id }}/runner=32cpu-linux-x64/family=c+m/volume=200gb/extras=s3-cache
+    steps:
+      - uses: runs-on/action@v2
+        with:
+          show_env: false
+          show_costs: summary
+          metrics: cpu,memory,disk
+
+      - name: Distro Version
+        run: lsb_release -a
+
+      - name: Disable Apparmor restriction
+        # Ubuntu has restriction of creating namespaces which bitbake needs
+        run: |
+          echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+
+      - name: Install packages for debugging
+        run: |
+          sudo apt-get install tree
+
+      - name: Install packages for debugging 2
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: baptiste0928/cargo-install@v3
+        with:
+          crate: du-dust
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: See What We Got
+        run: |
+          pwd
+          tree -L 2
+
+      - name: Compute cache timestamp
+        run: |
+          echo "CACHE_TS=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_ENV"
+
+      - name: Show disk usage
+        run: |
+          dust --no-progress --number-of-lines 60
+
+      - name: Cache Yocto downloads
+        uses: actions/cache@v4
+        with:
+          path: build/downloads
+          key: yocto-downloads-${{ env.CACHE_TS }}
+          restore-keys: |
+            yocto-downloads-
+
+      - name: Cache Yocto sstate cache
+        uses: actions/cache@v4
+        with:
+          path: build/sstate-cache
+          key: yocto-sstate-${{ env.CACHE_TS }}
+          restore-keys: |
+            yocto-sstate-
+
+      - name: Show disk usage with restored cache
+        run: |
+          dust --no-progress --number-of-lines 60
+
+      - name: Install libncurses5 libtinfo5 from Jammy
+        run: |
+          sudo cp scripts/jammy.sources /etc/apt/sources.list.d/
+          sudo apt-get update
+          sudo apt-get install libncurses5 libtinfo5
+          sudo rm /etc/apt/sources.list.d/jammy.sources
+
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install binutils chrpath cpio diffstat file g++ gawk gcc \
+                   git git-lfs libncurses5 libtinfo5 lz4 make python3 \
+                   rpcsvc-proto zstd
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python pakcages using uv
+        run: |
+          uv sync
+
+      - name: Checkout the meta repos under sources
+        run: |
+          uv run kas checkout kas/scobc-v1.yml
+
+      - name: Show disk usage after checkout
+        run: |
+          dust --no-progress --number-of-lines 60
+
+      - name: Fetch the sources
+        run: |
+          uv run kas shell kas/scobc-v1.yml -c 'bitbake sc-image-minimal --runall=fetch'
+
+      - name: Show disk usage after fetch
+        run: |
+          dust --no-progress --number-of-lines 60
+
+      - name: Build it
+        run: |
+          uv run kas build kas/scobc-v1.yml
+
+      - name: Show disk usage (runs even if previous step failed)
+        if: ${{ always() }}
+        run: |
+          dust --no-progress --number-of-lines 60
