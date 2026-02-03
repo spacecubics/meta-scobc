@@ -1,0 +1,89 @@
+name: Build
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+
+    runs-on: runs-on=${{ github.run_id }}/runner=16cpu-linux-x64/family=c+m/volume=100gb
+    steps:
+      - name: Show disk usage (runs even if previous step failed)
+        if: ${{ always() }}
+        run: |
+          echo "### df -h"
+          df -h
+
+      - name: Do we have apparmor?
+        run: |
+          dpkg -l | grep apparmor
+
+      - name: Disable Apparmor restriction
+        run: |
+          echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
+
+      - name: Setup packages on Linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install tree
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: See What We Got
+        run: |
+          pwd
+          tree -L 2
+
+      - name: Install libncurses5 libtinfo5 from Jammy
+        run: |
+          sudo cp scripts/jammy.sources /etc/apt/sources.list.d/
+          sudo apt-get update
+          sudo apt-get install libncurses5 libtinfo5
+          sudo rm /etc/apt/sources.list.d/jammy.sources
+
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install binutils chrpath cpio diffstat file g++ gawk gcc \
+                   git git-lfs libncurses5 libtinfo5 lz4 make python3 \
+                   rpcsvc-proto zstd
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python pakcages using uv
+        run: |
+          uv sync
+
+      - name: Show disk usage (runs even if previous step failed)
+        if: ${{ always() }}
+        run: |
+          echo "### df -h"
+          df -h
+
+      - name: Download
+        run: |
+          source .venv/bin/activate
+          kas build kas/scobc-v1.yml -c fetchall
+
+      - name: Show disk usage (runs even if previous step failed)
+        if: ${{ always() }}
+        run: |
+          echo "### df -h"
+          df -h
+
+      - name: Build it
+        run: |
+          source .venv/bin/activate
+          kas build kas/scobc-v1.yml --target u-boot-xlnx
+
+      - name: Show disk usage (runs even if previous step failed)
+        if: ${{ always() }}
+        run: |
+          echo "### df -h"
+          df -h
