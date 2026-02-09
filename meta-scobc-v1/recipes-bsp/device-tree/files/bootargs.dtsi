@@ -1,5 +1,5 @@
 / {
 	chosen {
-		bootargs = "console=ttyAMA0,115200";
+		bootargs = "console=ttyAMA0,115200 panic=3";
 	};
 };
