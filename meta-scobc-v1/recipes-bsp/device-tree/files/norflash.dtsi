@@ -9,3 +9,15 @@
 		reg = <0>;
 	};
 };
+
+&pl_qspi {
+	status = "okay";
+
+	is25lp0: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <1000000>;
+		reg = <0>;
+	};
+};
