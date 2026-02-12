@@ -10,7 +10,6 @@ KOUT ?= $(O)
 ifeq ($(DEBUG),1)
 	ccflags-y += -DSC_ROVER_MIPI_CSI_DEBUG
 endif
-ccflags-y += -DSC_ROVER_MIPI_CSI_DEBUG
 
 export KBUILD_EXTRA_SYMBOLS
 
