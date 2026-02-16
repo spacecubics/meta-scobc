@@ -14,7 +14,7 @@
 #   ┌──────────────────────────────────────────────────────────┐
 #   │  boot_golden  (VFAT, /boot from golden rootfs)           │
 #   │  root_golden  (EXT4, golden full rootfs)                 │
-#   │  data         (EXT4, for RAUC artifact repository)       │
+#   │  data         (EXT4, for shared data)                    │
 #   │  boot_main    (VFAT, /boot from main rootfs)             │
 #   │  root_main    (EXT4, main full rootfs)                   │
 #   └──────────────────────────────────────────────────────────┘

@@ -5,5 +5,6 @@ do_install:prepend() {
 }
 
 RDEPENDS:${PN}:append = " \
+    data-partition \
     rauc-post-install-bootbin \
 "
