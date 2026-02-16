@@ -8,3 +8,5 @@ dst="/boot/boot.bin"
 
 install -m 0644 "$src" "$dst"
 sync
+
+/usr/sbin/boot-to-main
