@@ -1,0 +1,13 @@
+[Unit]
+Description=Watch directory and run script when download completes
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/watch-rauc-bundle.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
