@@ -3,3 +3,4 @@ header:
 
 target:
   - sc-image-dualboot
+  - sc-image-bundle
