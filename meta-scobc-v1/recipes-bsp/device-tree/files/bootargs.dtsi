@@ -1,5 +1,5 @@
 / {
 	chosen {
-		bootargs = "console=ttyAMA0,115200 panic=3";
+		bootargs = "console=ttyAMA0,115200 panic=3 panic_on_oops=1 panic_on_warn=1 softlockup_panic=1 hung_task_panic=1";
 	};
 };
