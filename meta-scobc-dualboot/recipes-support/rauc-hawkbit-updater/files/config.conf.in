@@ -1,6 +1,6 @@
 [client]
 # host or IP and optional port
-hawkbit_server            = 10.30.0.28:8081
+hawkbit_server            = @@HAWKBIT_SERVER_ADDRESS@@
 
 # true = HTTPS, false = HTTP
 ssl                       = false
@@ -9,13 +9,13 @@ ssl                       = false
 ssl_verify                = false
 
 # Tenant id
-tenant_id                 = DEFAULT
+tenant_id                 = @@HAWKBIT_TENANT_ID@@
 
 # Target name (controller id)
-target_name               = 001
+target_name               = @@HAWKBIT_TARGET_NAME@@
 
 # Security token
-auth_token                = cb115a721af28f781b493fa467819ef5
+auth_token                = @@HAWKBIT_AUTH_TOKEN@@
 
 # Or gateway_token can be used instead of auth_token
 #gateway_token             = cb115a721af28f781b493fa467819ef5
