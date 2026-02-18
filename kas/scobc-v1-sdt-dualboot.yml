@@ -8,3 +8,4 @@ header:
     - kas/targets/sc-image-dualboot.yml
     - kas/conf/site.yml
     - kas/conf/hawkbit.yml
+    - kas/conf/rauc.yml
