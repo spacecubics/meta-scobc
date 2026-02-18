@@ -15,6 +15,12 @@ while :; do
 
 	if [ "$fname" = "$BUNDLE_NAME" ] && [ -f "$BUNDLE_PATH" ]; then
 		logger -t watch-rauc-bundle "Detected $BUNDLE_PATH; running boot-to-golden"
-		exec "$SCRIPT"
+
+		if /usr/bin/rauc info "$BUNDLE_PATH" > /dev/null 2>&1; then
+			logger -t watch-rauc-bundle "RAUC bundle verification succeeded"
+			exec "$SCRIPT"
+		else
+			logger -t watch-rauc-bundle "RAUC bundle verification failed"
+		fi
 	fi
 done
