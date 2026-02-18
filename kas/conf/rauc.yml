@@ -1,0 +1,8 @@
+header:
+  version: 19
+
+env:
+  RAUC_BUNDLE_VERSION:
+  RAUC_KEY_FILE:
+  RAUC_CERT_FILE:
+  RAUC_KEYRING_FILE:
