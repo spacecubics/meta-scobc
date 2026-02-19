@@ -67,17 +67,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/downloads
-          key: yocto-downloads-${{ env.CACHE_TS }}
+          key: yocto-downloads-${{ runner.os }}-${{ matrix.name }}-${{ env.CACHE_TS }}
           restore-keys: |
-            yocto-downloads-
+            yocto-downloads-${{ runner.os }}-${{ matrix.name }}-
 
       - name: Cache Yocto sstate cache
         uses: actions/cache@v4
         with:
           path: build/sstate-cache
-          key: yocto-sstate-${{ env.CACHE_TS }}
+          key: yocto-sstate-${{ runner.os }}-${{ matrix.name }}-${{ env.CACHE_TS }}
           restore-keys: |
-            yocto-sstate-
+            yocto-sstate-${{ runner.os }}-${{ matrix.name }}-
 
       - name: Show disk usage with restored cache
         run: |
