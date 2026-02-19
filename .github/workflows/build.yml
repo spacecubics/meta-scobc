@@ -18,6 +18,9 @@ jobs:
           - name: scobc-v1-sdt-minimal
             kas_file: kas/scobc-v1-sdt.yml
             image_recipe: sc-image-minimal
+          - name: scobc-v1-sdt-dualboot
+            kas_file: kas/scobc-v1-sdt-dualboot.yml
+            image_recipe: sc-image-dualboot sc-image-bundle
 
     runs-on: runs-on=${{ github.run_id }}/runner=32cpu-linux-x64/family=c+m/volume=200gb/extras=s3-cache
     steps:
