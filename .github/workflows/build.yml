@@ -7,8 +7,17 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    name: Build ${{ matrix.name }}
     strategy:
       fail-fast: false
+      matrix:
+        include:
+          - name: scobc-v1-xsct-minimal
+            kas_file: kas/scobc-v1.yml
+            image_recipe: sc-image-minimal
+          - name: scobc-v1-sdt-minimal
+            kas_file: kas/scobc-v1-sdt.yml
+            image_recipe: sc-image-minimal
 
     runs-on: runs-on=${{ github.run_id }}/runner=32cpu-linux-x64/family=c+m/volume=200gb/extras=s3-cache
     steps:
@@ -97,7 +106,7 @@ jobs:
 
       - name: Checkout the meta repos under sources
         run: |
-          uv run kas checkout kas/scobc-v1.yml
+          uv run kas checkout ${{ matrix.kas_file }}
 
       - name: Show disk usage after checkout
         run: |
@@ -105,7 +114,7 @@ jobs:
 
       - name: Fetch the sources
         run: |
-          uv run kas shell kas/scobc-v1.yml -c 'bitbake sc-image-minimal --runall=fetch'
+          uv run kas shell ${{ matrix.kas_file }} -c 'bitbake ${{ matrix.image_recipe }} --runall=fetch'
 
       - name: Show disk usage after fetch
         run: |
@@ -113,7 +122,7 @@ jobs:
 
       - name: Build it
         run: |
-          uv run kas build kas/scobc-v1.yml
+          uv run kas build ${{ matrix.kas_file }} --target ${{ matrix.image_recipe }}
 
       - name: Show disk usage (runs even if previous step failed)
         if: ${{ always() }}
