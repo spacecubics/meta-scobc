@@ -90,10 +90,12 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
-      - name: Install Python pakcages using uv
+      - name: Install Python packages using uv
         run: |
-          uv sync
+          uv sync --locked
 
       - name: Checkout the meta repos under sources
         run: |
