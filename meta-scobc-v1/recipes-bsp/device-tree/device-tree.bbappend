@@ -7,3 +7,5 @@ EXTRA_DT_INCLUDE_FILES:append = " \
     norflash.dtsi \
     reset.dtsi \
 "
+
+EXTRA_DT_INCLUDE_FILES:remove:versal-scobc-v1-sdt-full-microblaze-pmc = " ethernet.dtsi"

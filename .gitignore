@@ -1,6 +1,8 @@
 ## bitbake/kas .gitignore
 sources
 build
+output
+.Xil
 
 ## RAUC .gitignore
 openssl-ca
