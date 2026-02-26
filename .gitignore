@@ -5,6 +5,10 @@ build
 ## RAUC .gitignore
 openssl-ca
 
+## sdtgen/gen-machine-conf .gitignore
+.Xil
+output
+
 ## Python .gitignore template
 # Byte-compiled / optimized / DLL files
 __pycache__/
