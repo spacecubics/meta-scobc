@@ -1,7 +1,0 @@
-header:
-  version: 19
-
-machine: scobc-v1
-
-target:
-  - sc-image-minimal
