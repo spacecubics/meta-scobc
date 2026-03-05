@@ -1,0 +1,73 @@
+From 17646d4b15e4cd804b8f1170ad5ed164362fd07b Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 5 Mar 2026 16:07:11 +0900
+Subject: [PATCH 2/2] rtc: zynqmp: Always program Max_Tick and preserve
+ fractional calibration
+
+The current driver programs the CALIB_WRITE register only when
+CALIB_READ register reads as zero:
+
+    ret = readl(... + RTC_CALIB_RD);
+    if (!ret)
+        writel(calibval, ... + RTC_CALIB_WR);
+
+However, according to the Versal Adaptive SoC Register Reference (AM012),
+the value returned by CALIB_RD after reset is undefined.
+As a result, the driver may skip programming the calibration register and
+leave the RTC running with an incorrect Max_Tick value.
+
+The Max_Tick field determines the number of oscillator cycles per second
+and must be set according to the RTC clock frequency (e.g. 0x7FFF for a
+32.768 kHz oscillator).
+Leaving this value unprogrammed can cause the RTC to tick at the wrong rate.
+
+Update the driver to always program Max_Tick from the Device Tree
+"calibration" property (or the default value) while preserving the
+fractional calibration bits currently stored in hardware.
+The fractional correction may be adjusted dynamically (e.g. for temperature
+compensation) and should not be overwritten during probe.
+
+This ensures the RTC always uses the correct Max_Tick value without
+destroying any existing fractional calibration.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/rtc/rtc-zynqmp.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/rtc/rtc-zynqmp.c b/drivers/rtc/rtc-zynqmp.c
+index a4101f0a10b1..30a8dbba5a33 100644
+--- a/drivers/rtc/rtc-zynqmp.c
++++ b/drivers/rtc/rtc-zynqmp.c
+@@ -279,6 +279,8 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
+ {
+ 	struct xlnx_rtc_dev *xrtcdev;
+ 	u32 calibval;
++	u32 fraction;
++	u32 max_tick;
+ 	int ret;
+ 
+ 	xrtcdev = devm_kzalloc(&pdev->dev, sizeof(*xrtcdev), GFP_KERNEL);
+@@ -331,15 +333,14 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
+ 		xrtcdev->freq = RTC_FREQ_DEF;
+ 	}
+ 
++	/* Always program Max_Tick from DT, preserve fractional calibration bits. */
+ 	ret = of_property_read_u32(pdev->dev.of_node, "calibration", &calibval);
+ 	if (ret) {
+ 		calibval = RTC_CALIB_DEF;
+ 	}
+-
+-	ret = readl(xrtcdev->reg_base + RTC_CALIB_RD);
+-	if (!ret) {
+-		writel(calibval, (xrtcdev->reg_base + RTC_CALIB_WR));
+-	}
++	max_tick = calibval & RTC_TICK_MASK;
++	fraction = readl(xrtcdev->reg_base + RTC_CALIB_RD) & (RTC_FR_EN | RTC_FR_MASK);
++	writel(fraction | max_tick, (xrtcdev->reg_base + RTC_CALIB_WR));
+ 
+ 	xlnx_init_rtc(xrtcdev);
+ 
+-- 
+2.51.2
+
