@@ -1,0 +1,72 @@
+From 4f97697124cffe97a5a24416142ec7118f6070f4 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 5 Mar 2026 19:10:09 +0900
+Subject: [PATCH 1/2] rtc: zynqmp: Do not use DT calibration value as RTC
+ frequency
+
+The driver currently falls back to the Device Tree "calibration"
+property when the RTC clock rate cannot be obtained.
+
+However, the "calibration" property represents the value to be written
+to the RTC CALIB_WRITE register (Max_Tick and fractional correction),
+not the RTC oscillator frequency.
+
+The xrtcdev->freq field is later used for offset calculations and
+therefore must represent the actual RTC clock frequency in Hz.
+
+Using the calibration register value as the clock frequency leads to
+incorrect calculations.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/rtc/rtc-zynqmp.c | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/rtc/rtc-zynqmp.c b/drivers/rtc/rtc-zynqmp.c
+index b6f96c10196a..a4101f0a10b1 100644
+--- a/drivers/rtc/rtc-zynqmp.c
++++ b/drivers/rtc/rtc-zynqmp.c
+@@ -46,6 +46,7 @@
+ #define RTC_PPB			1000000000LL
+ #define RTC_MIN_OFFSET		-32768000
+ #define RTC_MAX_OFFSET		32767000
++#define RTC_FREQ_DEF		32768
+ 
+ struct xlnx_rtc_dev {
+ 	struct rtc_device	*rtc;
+@@ -277,6 +278,7 @@ static irqreturn_t xlnx_rtc_interrupt(int irq, void *id)
+ static int xlnx_rtc_probe(struct platform_device *pdev)
+ {
+ 	struct xlnx_rtc_dev *xrtcdev;
++	u32 calibval;
+ 	int ret;
+ 
+ 	xrtcdev = devm_kzalloc(&pdev->dev, sizeof(*xrtcdev), GFP_KERNEL);
+@@ -326,14 +328,18 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
+ 	}
+ 	xrtcdev->freq = clk_get_rate(xrtcdev->rtc_clk);
+ 	if (!xrtcdev->freq) {
+-		ret = of_property_read_u32(pdev->dev.of_node, "calibration",
+-					   &xrtcdev->freq);
+-		if (ret)
+-			xrtcdev->freq = RTC_CALIB_DEF;
++		xrtcdev->freq = RTC_FREQ_DEF;
+ 	}
++
++	ret = of_property_read_u32(pdev->dev.of_node, "calibration", &calibval);
++	if (ret) {
++		calibval = RTC_CALIB_DEF;
++	}
++
+ 	ret = readl(xrtcdev->reg_base + RTC_CALIB_RD);
+-	if (!ret)
+-		writel(xrtcdev->freq, (xrtcdev->reg_base + RTC_CALIB_WR));
++	if (!ret) {
++		writel(calibval, (xrtcdev->reg_base + RTC_CALIB_WR));
++	}
+ 
+ 	xlnx_init_rtc(xrtcdev);
+ 
+-- 
+2.51.2
+
