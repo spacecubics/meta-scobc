@@ -4,3 +4,4 @@ LICENSE = "MIT"
 require sc-image-common.inc
 
 IMAGE_NAME_SUFFIX ?= ""
+IMAGE_FSTYPES:append = " wic wic.xz wic.bmap"
