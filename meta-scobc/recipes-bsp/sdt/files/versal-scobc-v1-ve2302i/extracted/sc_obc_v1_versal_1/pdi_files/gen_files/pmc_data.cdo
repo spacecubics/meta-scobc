@@ -1017,11 +1017,7 @@ mask_write 0xf10600b0 0x3fe 0x2
 marker 0 "Configures MIO Pin 45 peripheral interface mapping"
 mask_write 0xf10600b4 0x3fe 0x2
 marker 0 "Configures MIO Pin 46 peripheral interface mapping"
-mask_write 0xf10600b8 0x3fe 0x2
-marker 0 "Configures MIO Pin 47 peripheral interface mapping"
-mask_write 0xf10600bc 0x3fe 0x2
-marker 0 "Configures MIO Pin 48 peripheral interface mapping"
-mask_write 0xf10600c0 0x3fe 0x2
+mask_write 0xf10600b8 0x3fe 0x380
 marker 0 "Configures MIO Pin 49 peripheral interface mapping"
 mask_write 0xf10600c4 0x3fe 0x2
 marker 0 "Configures MIO Pin 50 peripheral interface mapping"
@@ -1029,17 +1025,17 @@ mask_write 0xf10600c8 0x3fe 0x60
 marker 0 "Configures MIO Pin 51 peripheral interface mapping"
 mask_write 0xf10600cc 0x3fe 0x2
 marker 0 "bnk0_en_wk_pu"
-mask_write 0xf1060114 0x3ffffff 0
+mask_write 0xf1060114 0x3ffffff 0x10
 marker 0 "bnk1_en_wk_pu"
-mask_write 0xf1060314 0x3ffffff 0
+mask_write 0xf1060314 0x38fffff 0
 marker 0 "bnk0_en_wk_pd"
 mask_write 0xf1060110 0x3ffffff 0x1000
 marker 0 "bnk1_en_wk_pd"
-mask_write 0xf1060310 0x3ffffff 0x800
+mask_write 0xf1060310 0x38fffff 0x800
 marker 0 "bnk0_sel_slew"
 mask_write 0xf1060120 0x3ffffff 0x17bffff
 marker 0 "bnk1_sel_slew"
-mask_write 0xf1060320 0x3ffffff 0x3ffdfff
+mask_write 0xf1060320 0x38fffff 0x38fdfff
 marker 0 "bnk0_sel_drv0"
 mask_write 0xf1060118 0xffffffff 0xffffffff
 marker 0 "bnk0_sel_drv1"
@@ -1047,15 +1043,15 @@ mask_write 0xf106011c 0xfffff 0xbbfef
 marker 0 "bnk1_sel_drv0"
 mask_write 0xf1060318 0xffffffff 0xfbffffff
 marker 0 "bnk1_sel_drv1"
-mask_write 0xf106031c 0xfffff 0xfffff
+mask_write 0xf106031c 0xfc0ff 0xfc0ff
 marker 0 "bnk0_en_rx_schmitt_hyst"
 mask_write 0xf106010c 0x3ffffff 0x10021bf
 marker 0 "bnk1_en_rx_schmitt_hyst"
-mask_write 0xf106030c 0x3ffffff 0x2800000
+mask_write 0xf106030c 0x38fffff 0x2800000
 marker 0 "MIO pin Tri-state Enables, 31:0"
 mask_write 0xf1060200 0x3ffffff 0x2840000
 marker 0 "MIO pin Tri-state Enables, 63:32"
-mask_write 0xf1060204 0x3ffffff 0x2000
+mask_write 0xf1060204 0x38fffff 0x2000
 marker 0 "LOCKING SLCR"
 marker 0 "PMC SLCR Write protection register for IO Muxes"
 mask_write 0xf1060828 0x1 0x1
