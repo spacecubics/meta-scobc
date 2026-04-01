@@ -1,8 +1,0 @@
-header:
-  version: 19
-  includes:
-    - kas/xilinx/v2025-1.yml
-    - kas/sc/scobc.yml
-    - kas/machine/versal-scobc-v1-ve2002e-xsct-full.yml
-    - kas/targets/sc-image-minimal.yml
-    - kas/conf/site.yml
