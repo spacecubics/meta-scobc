@@ -12,16 +12,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: scobc-v1-xsct
-            kas_file: kas/scobc-v1-xsct.yml
-            image_recipe: sc-image-minimal sc-image-dev
-          - name: scobc-v1-devgrade-xsct
-            kas_file: kas/scobc-v1-devgrade-xsct.yml
-            image_recipe: sc-image-minimal sc-image-dev
-          - name: scobc-v1-devgrade-ve2002-xsct
-            kas_file: kas/scobc-v1-devgrade-ve2002-xsct.yml
-            image_recipe: sc-image-minimal sc-image-dev
-
           - name: scobc-v1
             kas_file: kas/scobc-v1.yml
             image_recipe: sc-image-minimal sc-image-dev
