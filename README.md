@@ -40,21 +40,13 @@ The resulting images will be available under:
 build/tmp/deploy/images/<machine>/
 ```
 
-### SDT flow machines
+### Supported Machines
 
 | Machine                                  | Machine configuration file                                                                             | kas configuration file                                                 |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | SC-OBC Module V1 SpaceGrade              | [`versal-scobc-v1-sdt-full`](meta-scobc-v1/conf/machine/versal-scobc-v1-sdt-full.conf)                 | [`kas/scobc-v1-sdt.yml`](kas/scobc-v1-sdt.yml)                         |
 | SC-OBC Module V1 DeveloperGrade (VE2302) | [`versal-scobc-v1-ve2302e-sdt-full`](meta-scobc-v1/conf/machine/versal-scobc-v1-ve2302e-sdt-full.conf) | [`kas/scobc-v1-devgrade.yml`](kas/scobc-v1-devgrade.yml)               |
 | SC-OBC Module V1 DeveloperGrade (VE2002) | [`versal-scobc-v1-ve2002e-sdt-full`](meta-scobc-v1/conf/machine/versal-scobc-v1-ve2002e-sdt-full.conf) | [`kas/scobc-v1-devgrade-ve2002.yml`](kas/scobc-v1-devgrade-ve2002.yml) |
-
-### XSCT flow machines
-
-| Machine                                  | Machine configuration file                                                                               | kas configuration file                                                           |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| SC-OBC Module V1 SpaceGrade              | [`scobc-v1`](meta-scobc-v1/conf/machine/scobc-v1.conf)                                                   | [`kas/scobc-v1.yml`](kas/scobc-v1.yml)                                           |
-| SC-OBC Module V1 DeveloperGrade (VE2302) | [`versal-scobc-v1-ve2302e-xsct-full`](meta-scobc-v1/conf/machine/versal-scobc-v1-ve2302e-xsct-full.conf) | [`kas/scobc-v1-devgrade-xsct.yml`](kas/scobc-v1-devgrade-xsct.yml)               |
-| SC-OBC Module V1 DeveloperGrade (VE2002) | [`versal-scobc-v1-ve2002e-xsct-full`](meta-scobc-v1/conf/machine/versal-scobc-v1-ve2002e-xsct-full.conf) | [`kas/scobc-v1-devgrade-ve2002-xsct.yml`](kas/scobc-v1-devgrade-ve2002-xsct.yml) |
 
 ### Faster builds (shared caches)
 
