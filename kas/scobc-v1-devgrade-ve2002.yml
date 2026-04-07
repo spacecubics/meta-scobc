@@ -5,4 +5,3 @@ header:
     - kas/sc/scobc.yml
     - kas/machine/versal-scobc-v1-ve2002e-sdt-full.yml
     - kas/targets/sc-image-minimal.yml
-    - kas/conf/site.yml
