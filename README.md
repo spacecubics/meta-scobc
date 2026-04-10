@@ -71,9 +71,9 @@ $ kas build kas/scobc-v1-sdt.yml
 ```
 
 [1]: https://git-lfs.com/
-[m-space]: meta-scobc-v1/conf/machine/versal-scobc-v1-sdt-full.conf
-[m-dev-2302]: meta-scobc-v1/conf/machine/versal-scobc-v1-ve2302e-sdt-full.conf
-[m-dev-2002]: meta-scobc-v1/conf/machine/versal-scobc-v1-ve2002e-sdt-full.conf
+[m-space]: meta-scobc/conf/machine/versal-scobc-v1-ve2302i-sdt-full.conf
+[m-dev-2302]: meta-scobc/conf/machine/versal-scobc-v1-ve2302e-sdt-full.conf
+[m-dev-2002]: meta-scobc/conf/machine/versal-scobc-v1-ve2002e-sdt-full.conf
 [kas-space]: kas/scobc-v1-sdt.yml
 [kas-dev-2302]: kas/scobc-v1-devgrade.yml
 [kas-dev-2002]: kas/scobc-v1-devgrade-ve2002.yml
