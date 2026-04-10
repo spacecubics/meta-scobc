@@ -28,8 +28,8 @@ ALLOW_EMPTY:${PN}-main = "1"
 # configuration (main / golden). The existing u-boot-xlnx partition
 # definition is reused, and only the ELF file path is switched between
 # the two variants.
-BIF_PARTITION_ATTR[main] = "${BIF_FSBL_ATTR} fpd-cdo ${BIF_DEVICETREE_ATTR} ${BIF_ATF_ATTR} u-boot-main"
-BIF_PARTITION_ATTR[golden] =  "${BIF_FSBL_ATTR} fpd-cdo ${BIF_DEVICETREE_ATTR} ${BIF_ATF_ATTR} u-boot-golden"
+BIF_PARTITION_ATTR[main] = "${BIF_FSBL_ATTR} ${BIF_CDO_PARTITIONS} ${BIF_DEVICETREE_ATTR} ${BIF_ATF_ATTR} u-boot-main ${BIF_RPU_PARTITIONS} ${BIF_EXTRA_PARTITIONS}"
+BIF_PARTITION_ATTR[golden] =  "${BIF_FSBL_ATTR} ${BIF_CDO_PARTITIONS} ${BIF_DEVICETREE_ATTR} ${BIF_ATF_ATTR} u-boot-golden ${BIF_RPU_PARTITIONS} ${BIF_EXTRA_PARTITIONS}"
 
 BIF_PARTITION_ATTR[fpd-cdo]  = "type=cdo"
 BIF_PARTITION_ID[fpd-cdo]    = "0x1c000000"
