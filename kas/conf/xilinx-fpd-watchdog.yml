@@ -1,6 +1,10 @@
 header:
   version: 19
 
+local_conf_header:
+  scobc-watchdog: |
+    ENABLE_XILINX_FPD_WWDT = "1"
+
 env:
   XILINX_FPD_WWDT_TIMEOUT:
   XILINX_FPD_WWDT_CLOSED_WINDOW_PERCENT:
