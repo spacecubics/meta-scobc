@@ -60,8 +60,6 @@ For faster incremental builds, you can enable shared download and sstate caches:
 $ kas build kas/scobc-v1-sdt.yml:kas/conf/site.opt.yml
 ```
 
----
-
 [1]: https://git-lfs.com/
 [m-space]: meta-scobc-v1/conf/machine/versal-scobc-v1-sdt-full.conf
 [m-dev-2302]: meta-scobc-v1/conf/machine/versal-scobc-v1-ve2302e-sdt-full.conf
