@@ -46,7 +46,11 @@ build/tmp/deploy/images/<machine>/
 | -------------------------------- | -------------------------------------------------| ------------------------------------------- |
 | SC-OBC Module V1 Space Grade     | [`versal-scobc-v1-sdt-full`][m-space]            | [`kas/scobc-v1-sdt.yml`][kas-space]         |
 | SC-OBC Module V1 Developer Grade | [`versal-scobc-v1-ve2302e-sdt-full`][m-dev-2302] | [`kas/scobc-v1-devgrade.yml`][kas-dev-2302] |
-| SC-OBC Module V1 VE2002 Variant (not commercially available)  | [`versal-scobc-v1-ve2002e-sdt-full`][m-dev-2002] | [`kas/scobc-v1-devgrade-ve2002.yml`][kas-dev-2002] |
+| SC-OBC Module V1 VE2002 Variant  | [`versal-scobc-v1-ve2002e-sdt-full`][m-dev-2002] | [`kas/scobc-v1-devgrade-ve2002.yml`][kas-dev-2002] |
+
+> [!NOTE]
+> SC-OBC Module V1 VE2002 Variant is not
+> commercially available.
 
 ### Faster builds (shared caches)
 
