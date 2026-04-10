@@ -50,10 +50,20 @@ build/tmp/deploy/images/<machine>/
 
 ### Faster builds (shared caches)
 
-For faster incremental builds, you can enable shared download and sstate caches:
+For faster incremental builds, you should keep the downloaded files and
+the shared state cache. By default, the download directory and the
+shared state directory are placed under the build directory. This means
+that when you remove the build directory, those artifacts are removed as
+well.
 
-```bash
-$ kas build kas/scobc-v1-sdt.yml:kas/conf/site.opt.yml
+Instead, set the `DL_DIR` and `SSTATE_DIR` environment variables to
+fixed locations outside the build directory. This keeps the artifacts
+available even if you delete and recreate the build directory.
+
+```console
+$ export DL_DIR=/opt/yocto/downloads
+$ export SSTATE_DIR=/opt/yocto/sstate-cache
+$ kas build kas/scobc-v1-sdt.yml
 ```
 
 ---
