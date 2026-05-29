@@ -3,6 +3,9 @@ LICENSE = "MIT"
 
 require sc-image-common.inc
 
+ENABLE_CONTAINER ?= "0"
+WKS_FILES = "${@'sc-container-sd.wks' if bb.utils.to_boolean(d.getVar('ENABLE_CONTAINER'), False) else 'xilinx-default-sd.wks'}"
+
 IMAGE_NAME_SUFFIX ?= ""
 IMAGE_FSTYPES:append = " wic wic.xz wic.bmap"
 
