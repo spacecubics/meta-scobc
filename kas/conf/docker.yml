@@ -1,0 +1,8 @@
+header:
+  version: 19
+  includes:
+    - container.yml
+
+local_conf_header:
+  enable-docker: |
+    ENABLE_DOCKER = "1"
