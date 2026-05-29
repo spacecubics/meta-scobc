@@ -13,3 +13,7 @@ SRC_URI += " \
 SRC_URI:append = " \
     ${@'file://xilinx-wwdt.cfg' if bb.utils.to_boolean(d.getVar('ENABLE_XILINX_FPD_WWDT'), False) else ''} \
 "
+
+SRC_URI:append = " \
+    ${@' file://container.cfg' if bb.utils.to_boolean(d.getVar('ENABLE_CONTAINER'), False) else ''} \
+"
