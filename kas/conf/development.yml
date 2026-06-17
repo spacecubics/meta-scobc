@@ -1,0 +1,8 @@
+# Development-only kas configuration. Do not use this for production images.
+
+header:
+  version: 19
+
+local_conf_header:
+  development: |
+    EXTRA_IMAGE_FEATURES:append = " allow-root-login allow-empty-password empty-root-password"
