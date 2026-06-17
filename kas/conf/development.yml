@@ -6,3 +6,4 @@ header:
 local_conf_header:
   development: |
     EXTRA_IMAGE_FEATURES:append = " allow-root-login allow-empty-password empty-root-password"
+    IMAGE_INSTALL:append = " rsync"
