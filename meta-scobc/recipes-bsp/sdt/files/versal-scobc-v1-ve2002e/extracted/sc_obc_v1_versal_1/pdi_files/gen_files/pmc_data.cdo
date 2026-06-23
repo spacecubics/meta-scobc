@@ -1013,15 +1013,15 @@ mask_write 0xf1060310 0x38fffff 0x800
 marker 0 "bnk0_sel_slew"
 mask_write 0xf1060120 0x3ffffff 0x17bffff
 marker 0 "bnk1_sel_slew"
-mask_write 0xf1060320 0x38fffff 0x38fdfff
+mask_write 0xf1060320 0x38fffff 0x28fdfff
 marker 0 "bnk0_sel_drv0"
-mask_write 0xf1060118 0xffffffff 0xffffffff
+mask_write 0xf1060118 0xffffffff 0xffaaefff
 marker 0 "bnk0_sel_drv1"
 mask_write 0xf106011c 0xfffff 0xbbfef
 marker 0 "bnk1_sel_drv0"
 mask_write 0xf1060318 0xffffffff 0xfbffffff
 marker 0 "bnk1_sel_drv1"
-mask_write 0xf106031c 0xfc0ff 0xfc0ff
+mask_write 0xf106031c 0xfc0ff 0xec0ff
 marker 0 "bnk0_en_rx_schmitt_hyst"
 mask_write 0xf106010c 0x3ffffff 0x10021bf
 marker 0 "bnk1_en_rx_schmitt_hyst"
@@ -1029,7 +1029,7 @@ mask_write 0xf106030c 0x38fffff 0x2800000
 marker 0 "MIO pin Tri-state Enables, 31:0"
 mask_write 0xf1060200 0x3ffffff 0x2840000
 marker 0 "MIO pin Tri-state Enables, 63:32"
-mask_write 0xf1060204 0x38fffff 0x2000
+mask_write 0xf1060204 0x38fffff 0x1002000
 marker 0 "LOCKING SLCR"
 marker 0 "PMC SLCR Write protection register for IO Muxes"
 mask_write 0xf1060828 0x1 0x1
@@ -1695,13 +1695,13 @@ marker 0 "Direction mode (GPIO Bank0, MIO)"
 mask_write 0xf1020204 0x3ffffff 0x1000
 marker 0 "DIR MODE BANK 1"
 marker 0 "Direction mode (GPIO Bank1, MIO)"
-mask_write 0xf1020244 0x3ffffff 0x1000804
+mask_write 0xf1020244 0x3ffffff 0x804
 marker 0 "OUTPUT ENABLE BANK 0"
 marker 0 "Output enable (GPIO Bank0, MIO)"
 mask_write 0xf1020208 0x3ffffff 0x1000
 marker 0 "OUTPUT ENABLE BANK 1"
 marker 0 "Output enable (GPIO Bank1, MIO)"
-mask_write 0xf1020248 0x3ffffff 0x1000804
+mask_write 0xf1020248 0x3ffffff 0x804
 marker 0 "MASK_DATA_0_LSW LOW BANK [15:0]"
 marker 0 "Maskable Output Data (GPIO Bank0, MIO, Lower 16bits)"
 mask_write 0xf1020000 0xffffffff 0xffff0000
@@ -1713,7 +1713,7 @@ marker 0 "Maskable Output Data (GPIO Bank1, MIO, Lower 16bits)"
 mask_write 0xf1020008 0xffffffff 0xffff0000
 marker 0 "MASK_DATA_1_MSW HIGH BANK [51:42]"
 marker 0 "Maskable Output Data (GPIO Bank1, MIO, Upper 10 bits)"
-mask_write 0xf102000c 0x3ff03ff 0x2ff0000
+mask_write 0xf102000c 0x3ff03ff 0x3ff0000
 marker 0 "CLOCK MONITOR SETTINGS"
 marker 0 "Over-Temp check with a delay of 0 ms"
 ot_check 0
