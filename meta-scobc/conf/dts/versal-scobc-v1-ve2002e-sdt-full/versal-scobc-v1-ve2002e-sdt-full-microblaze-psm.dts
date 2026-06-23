@@ -1013,7 +1013,7 @@
                         xlnx,ip-name = "psv_spi";
                         xlnx,has-ss1 = <0x1>;
                         num-cs = <0x2>;
-                        xlnx,spi-clk-freq-hz = <0xbebc200>;
+                        xlnx,spi-clk-freq-hz = <0x1312d00>;
                         xlnx,has-ss2 = <0x0>;
                         xlnx,name = "versal_ps_pspmc_0_psv_spi_1";
                 };
@@ -2465,7 +2465,7 @@
                 compatible = "simple-bus";
                 #address-cells = <0x2>;
                 #size-cells = <0x2>;
-                firmware-name = "sc_obc_v1_versal_ve2002e_93b25801.pdi";
+                firmware-name = "sc_obc_v1_versal_ve2002e_0e39a2dd.pdi";
         };
 
         versal_noc_ddr_memory: memory@00000000 {

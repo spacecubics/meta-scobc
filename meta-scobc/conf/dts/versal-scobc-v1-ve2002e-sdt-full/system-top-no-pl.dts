@@ -2113,7 +2113,7 @@
                         xlnx,ip-name = "psv_spi";
                         xlnx,has-ss1 = <0x1>;
                         num-cs = <0x2>;
-                        xlnx,spi-clk-freq-hz = <0xbebc200>;
+                        xlnx,spi-clk-freq-hz = <0x1312d00>;
                         xlnx,has-ss2 = <0x0>;
                         xlnx,name = "versal_ps_pspmc_0_psv_spi_1";
                 };

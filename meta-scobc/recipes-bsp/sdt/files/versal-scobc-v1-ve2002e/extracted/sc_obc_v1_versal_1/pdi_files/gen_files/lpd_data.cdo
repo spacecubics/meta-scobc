@@ -169,7 +169,7 @@ mask_write 0xff5e0128 0x203ff07 0x2000c00
 marker 0 "This register controls the uart1_ref clock"
 mask_write 0xff5e012c 0x203ff07 0x2000c00
 marker 0 "This register controls the spi1_ref clock"
-mask_write 0xff5e0134 0x203ff07 0x2000600
+mask_write 0xff5e0134 0x203ff07 0x2003c00
 marker 0 "This register controls the dbg_lpd_ref clock"
 mask_write 0xff5e0148 0x203ff07 0x2000300
 marker 0 "This register controls the dbg_tstmp clock"

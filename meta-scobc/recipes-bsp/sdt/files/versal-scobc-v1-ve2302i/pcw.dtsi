@@ -3447,7 +3447,7 @@
 		xlnx,ip-name = "psv_spi";
 		xlnx,has-ss1 = <1>;
 		num-cs = <2>;
-		xlnx,spi-clk-freq-hz = <200000000>;
+		xlnx,spi-clk-freq-hz = <20000000>;
 		xlnx,has-ss2 = <0>;
 		xlnx,name = "versal_ps_pspmc_0_psv_spi_1";
 	};
