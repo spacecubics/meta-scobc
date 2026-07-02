@@ -3,9 +3,9 @@
 ## Prerequisite
 
 > [!IMPORTANT]
-> We store `.xsa` files using [Git LFS][1]. Make sure Git LFS is
-> installed; otherwise you won't get the actual `.xsa` files and the build
-> will fail.
+> If you need to check out or build sources at or before
+> [v2026.06][tag-v2026.06], [Git LFS][git-lfs] must be installed; otherwise
+> you won't get the actual `.xsa` files and the build will fail.
 
 ## Setup
 
@@ -70,7 +70,8 @@ $ export SSTATE_DIR=/opt/yocto/sstate-cache
 $ kas build kas/scobc-v1-sdt.yml
 ```
 
-[1]: https://git-lfs.com/
+[tag-v2026.06]: https://github.com/spacecubics/meta-scobc/tree/v2026.06
+[git-lfs]: https://git-lfs.com/
 [m-space]: meta-scobc/conf/machine/versal-scobc-v1-ve2302i-sdt-full.conf
 [m-dev-2302]: meta-scobc/conf/machine/versal-scobc-v1-ve2302e-sdt-full.conf
 [m-dev-2002]: meta-scobc/conf/machine/versal-scobc-v1-ve2002e-sdt-full.conf
