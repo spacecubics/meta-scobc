@@ -1,0 +1,9 @@
+header:
+  version: 19
+
+repos:
+  meta-xilinx:
+    patches:
+      sector-size-fix:
+        repo: meta-scobc
+        path: kas/patches/meta-xilinx/0001-meta-xilinx-core-bootimg-partition-Add-sector_size-s.patch
