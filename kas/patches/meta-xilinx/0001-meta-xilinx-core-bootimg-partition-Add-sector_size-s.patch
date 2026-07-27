@@ -1,0 +1,31 @@
+From 96a894dc5ce4d0f444d920519dd2f8933125a9eb Mon Sep 17 00:00:00 2001
+From: Mark Hatle <mark.hatle@amd.com>
+Date: Wed, 25 Feb 2026 18:38:19 -0700
+Subject: [PATCH] meta-xilinx-core: bootimg-partition: Add sector_size support
+
+If using the boot-partition plugin, we need to support sector_size option
+or wic will fail.
+
+Signed-off-by: Mark Hatle <mark.hatle@amd.com>
+Message-Id: <20260226013839.516758-6-mark.hatle@amd.com>
+Signed-off-by: Sandeep Gundlupet Raju <sandeep.gundlupet-raju@amd.com>
+---
+ .../scripts/lib/wic/plugins/source/bootimg-partition.py         | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meta-xilinx-core/scripts/lib/wic/plugins/source/bootimg-partition.py b/meta-xilinx-core/scripts/lib/wic/plugins/source/bootimg-partition.py
+index 1071d1af3..f061ebce1 100644
+--- a/meta-xilinx-core/scripts/lib/wic/plugins/source/bootimg-partition.py
++++ b/meta-xilinx-core/scripts/lib/wic/plugins/source/bootimg-partition.py
+@@ -166,7 +166,7 @@ class BootimgPartitionPlugin(SourcePlugin):
+     @classmethod
+     def do_prepare_partition(cls, part, source_params, cr, cr_workdir,
+                              oe_builddir, bootimg_dir, kernel_dir,
+-                             rootfs_dir, native_sysroot):
++                             rootfs_dir, native_sysroot, sector_size):
+         """
+         Called to do the actual content population for a partition i.e. it
+         'prepares' the partition to be incorporated into the image.
+-- 
+2.55.0
+
