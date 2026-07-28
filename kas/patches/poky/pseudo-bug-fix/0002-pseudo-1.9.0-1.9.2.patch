@@ -1,0 +1,36 @@
+From e6cbef9080ed3898c7f4b139b193697665767715 Mon Sep 17 00:00:00 2001
+From: Robert Yang <liezhi.yang@windriver.com>
+Date: Thu, 3 Jul 2025 23:26:20 -0700
+Subject: [PATCH 2/8] pseudo: 1.9.0 -> 1.9.2
+
+(From OE-Core rev: 89256d7c891c0053028a4d8679ccebc24f36577c)
+
+Signed-off-by: Robert Yang <liezhi.yang@windriver.com>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+(cherry picked from commit 48a42747fd280ce68283e1491971d22273e3bdf2)
+Signed-off-by: Yoann Congal <yoann.congal@smile.fr>
+Signed-off-by: Paul Barker <paul@pbarker.dev>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+---
+ meta/recipes-devtools/pseudo/pseudo_git.bb | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/meta/recipes-devtools/pseudo/pseudo_git.bb b/meta/recipes-devtools/pseudo/pseudo_git.bb
+index 5e2a8bf328..ec9ef2dd5d 100644
+--- a/meta/recipes-devtools/pseudo/pseudo_git.bb
++++ b/meta/recipes-devtools/pseudo/pseudo_git.bb
+@@ -12,9 +12,9 @@ SRC_URI:append:class-nativesdk = " \
+     file://older-glibc-symbols.patch"
+ SRC_URI[prebuilt.sha256sum] = "ed9f456856e9d86359f169f46a70ad7be4190d6040282b84c8d97b99072485aa"
+ 
+-SRCREV = "3fac97341f0f8270ca28a91098d0a58ca306a6bd"
++SRCREV = "b4645cb30573c5b3d5e94b9d50e1e2f8beefe9be"
+ S = "${WORKDIR}/git"
+-PV = "1.9.0+git"
++PV = "1.9.2"
+ 
+ # largefile and 64bit time_t support adds these macros via compiler flags globally
+ # remove them for pseudo since pseudo intercepts some of the functions which will be
+-- 
+2.55.0
+

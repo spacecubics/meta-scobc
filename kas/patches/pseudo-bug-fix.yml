@@ -1,0 +1,9 @@
+header:
+  version: 19
+
+repos:
+  poky:
+    patches:
+      pseudo-bug-fix:
+        repo: meta-scobc
+        path: kas/patches/poky/pseudo-bug-fix

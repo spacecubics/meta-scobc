@@ -1,0 +1,52 @@
+From bf7d623729e1a9b61bb3e0082081f0c714b70832 Mon Sep 17 00:00:00 2001
+From: Paul Barker <paul@pbarker.dev>
+Date: Mon, 3 Nov 2025 20:11:20 +0000
+Subject: [PATCH 4/8] pseudo: Add hard sstate dependencies for pseudo-native
+
+Where a task (such as do_package) runs under fakeroot, the corresponding
+setscene task (do_package_setscene) will also run under fakeroot when
+restoring from sstate. Assuming pseudo is used as the fakeroot
+implementation, we need pseudo-native and all its runtime dependencies
+to be available in the sysroot before running any setscene tasks under
+fakeroot.
+
+We already add a hard dependency from all do_package_setscene tasks to
+virtual/fakeroot-native:do_populate_sysroot in base.bbclass, but this
+does not cover transitive dependencies. So, extend the dependencies of
+pseudo-native:do_populate_sysroot_setscene to ensure that the sqlite3
+library is also available in the sysroot before running fakeroot
+setscene tasks.
+
+[YOCTO #15963]
+
+(From OE-Core rev: c73e9513f26cd9e073fc2eb0a67378ad7864d677)
+
+Signed-off-by: Paul Barker <paul@pbarker.dev>
+Signed-off-by: Mathieu Dubois-Briand <mathieu.dubois-briand@bootlin.com>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+(cherry picked from commit 2c146ca657440550e00bc5e53d13502ef7aa945b)
+Signed-off-by: Yoann Congal <yoann.congal@smile.fr>
+Signed-off-by: Paul Barker <paul@pbarker.dev>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+---
+ meta/recipes-devtools/pseudo/pseudo.inc | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/meta/recipes-devtools/pseudo/pseudo.inc b/meta/recipes-devtools/pseudo/pseudo.inc
+index 7e09b6d58c..9c191560fb 100644
+--- a/meta/recipes-devtools/pseudo/pseudo.inc
++++ b/meta/recipes-devtools/pseudo/pseudo.inc
+@@ -156,3 +156,10 @@ do_install:append:class-nativesdk () {
+ }
+ 
+ BBCLASSEXTEND = "native nativesdk"
++
++# Setscene tasks which run under fakeroot must not be executed before
++# pseudo-native and *all* its runtime dependencies are available in the
++# sysroot.
++PSEUDO_SETSCENE_DEPS = ""
++PSEUDO_SETSCENE_DEPS:class-native = "sqlite3-native:do_populate_sysroot"
++do_populate_sysroot_setscene[depends] += "${PSEUDO_SETSCENE_DEPS}"
+-- 
+2.55.0
+
