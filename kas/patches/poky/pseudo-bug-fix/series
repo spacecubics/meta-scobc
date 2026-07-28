@@ -1,0 +1,8 @@
+0001-pseudo-Upgrade-to-version-1.9.1.patch
+0002-pseudo-1.9.0-1.9.2.patch
+0003-pseudo-Update-to-pull-in-memleak-fix.patch
+0004-pseudo-Add-hard-sstate-dependencies-for-pseudo-nativ.patch
+0005-pseudo-Update-to-pull-in-openat2-and-efault-return-c.patch
+0006-pseudo-Update-to-pull-in-makewrappers-Fix-EFAULT-imp.patch
+0007-pseudo-Update-to-1.9.3-release.patch
+0008-pseudo-Update-to-include-an-openat2-fix.patch

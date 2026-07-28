@@ -1,0 +1,52 @@
+From 4f4691984adc231b8654f600aaa08d57c2069d62 Mon Sep 17 00:00:00 2001
+From: Richard Purdie <richard.purdie@linuxfoundation.org>
+Date: Tue, 20 Jan 2026 08:52:27 +0000
+Subject: [PATCH 7/8] pseudo: Update to 1.9.3 release
+
+Pulls in the following changes:
+
+  Makefile.in: Bump version to 1.9.3
+  configure: Minor code quality changes
+  pseudo: code quality scan - resolved various potential issues
+  makewrappers: improve error handling and robustness
+  Update COPYRIGHT files
+  ports/linux/pseudo_wrappers.c: Call the wrappers where possible
+  ports/linux/pseudo_wrappers.c: Workaround compile error on Debian 11
+  ports/linux/pseudo_wrappers.c: Reorder the syscall operations
+  ports/unix/guts/realpath.c: Fix indents
+  pseudo_util.c: Skip realpath like expansion for /proc on Linux
+  test/test-proc-pipe.sh: Add test case for proc pipes
+  ports/unix/guts/realpath.c: realpath fails if the resolved path doesn't exist
+
+(From OE-Core rev: 7a05347a6418bfb6126e3a601489dc71efb0d2fc)
+
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+Signed-off-by: Antonin Godard <antonin.godard@bootlin.com>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+(cherry picked from commit 524f4bbb11f9c7e0126e8bd46af217b452d48f5e)
+Signed-off-by: Yoann Congal <yoann.congal@smile.fr>
+Signed-off-by: Paul Barker <paul@pbarker.dev>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+---
+ meta/recipes-devtools/pseudo/pseudo_git.bb | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/meta/recipes-devtools/pseudo/pseudo_git.bb b/meta/recipes-devtools/pseudo/pseudo_git.bb
+index c78f1ab724..d08fe9f42c 100644
+--- a/meta/recipes-devtools/pseudo/pseudo_git.bb
++++ b/meta/recipes-devtools/pseudo/pseudo_git.bb
+@@ -12,9 +12,9 @@ SRC_URI:append:class-nativesdk = " \
+     file://older-glibc-symbols.patch"
+ SRC_URI[prebuilt.sha256sum] = "ed9f456856e9d86359f169f46a70ad7be4190d6040282b84c8d97b99072485aa"
+ 
+-SRCREV = "125b020dd2bc46baa37a80784704e382732357b4"
++SRCREV = "750362cc7b9fa58dffccd95d919b435c6d8ac614"
+ S = "${WORKDIR}/git"
+-PV = "1.9.2+git"
++PV = "1.9.3+git"
+ 
+ # largefile and 64bit time_t support adds these macros via compiler flags globally
+ # remove them for pseudo since pseudo intercepts some of the functions which will be
+-- 
+2.55.0
+

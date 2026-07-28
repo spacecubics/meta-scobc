@@ -1,0 +1,35 @@
+From fb693aab03296183068b218eff7f23aa7a10b6a5 Mon Sep 17 00:00:00 2001
+From: Richard Purdie <richard.purdie@linuxfoundation.org>
+Date: Wed, 14 Jan 2026 17:34:27 +0000
+Subject: [PATCH 6/8] pseudo: Update to pull in 'makewrappers: Fix EFAULT
+ implementation'
+
+The pseudo update was causing hangs in builds, pull in the fix.
+
+(From OE-Core rev: a845c75096c381f45c13451b1baedc7774e4eff2)
+
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+(cherry picked from commit 8acdbefd0a148c8b7713f46066ae8489984c5d2d)
+Signed-off-by: Yoann Congal <yoann.congal@smile.fr>
+Signed-off-by: Paul Barker <paul@pbarker.dev>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+---
+ meta/recipes-devtools/pseudo/pseudo_git.bb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meta/recipes-devtools/pseudo/pseudo_git.bb b/meta/recipes-devtools/pseudo/pseudo_git.bb
+index 19da3d4e08..c78f1ab724 100644
+--- a/meta/recipes-devtools/pseudo/pseudo_git.bb
++++ b/meta/recipes-devtools/pseudo/pseudo_git.bb
+@@ -12,7 +12,7 @@ SRC_URI:append:class-nativesdk = " \
+     file://older-glibc-symbols.patch"
+ SRC_URI[prebuilt.sha256sum] = "ed9f456856e9d86359f169f46a70ad7be4190d6040282b84c8d97b99072485aa"
+ 
+-SRCREV = "9ce8c09980af23ebd4ebf072010469882d0459a6"
++SRCREV = "125b020dd2bc46baa37a80784704e382732357b4"
+ S = "${WORKDIR}/git"
+ PV = "1.9.2+git"
+ 
+-- 
+2.55.0
+

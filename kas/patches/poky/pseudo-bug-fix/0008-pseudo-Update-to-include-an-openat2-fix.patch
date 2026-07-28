@@ -1,0 +1,45 @@
+From 99047ec235e0aa53987fa93e906d97fca3ad205e Mon Sep 17 00:00:00 2001
+From: Richard Purdie <richard.purdie@linuxfoundation.org>
+Date: Fri, 13 Feb 2026 12:22:45 +0000
+Subject: [PATCH 8/8] pseudo: Update to include an openat2 fix
+
+We're seeing occasional autobuilder failures with tar issues related to openat2.
+It appears there are definitions missing on debian 11 and opensuse 15.5 systems
+which mean the openat2 syscall intercept isn't compiled in. This then triggers
+on systems using the openat2 syscall, such as alma9 where it is used in a tar
+CVE fix.
+
+This updates to include the fix from upstream pseudo (along with a compile warning
+fix).
+
+This was tested by taking sstate for pseudo-native from a debian 11 system and using
+it in a build of "bitbake nativesdk-git -c install" on a alma9 system where that task
+failed. After this fix, it completes.
+
+(From OE-Core rev: 34b74540ee497e2cc89211d7aa2772097b6fa79b)
+
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+(cherry picked from commit 2c20c05b324e5d6564c8554381019170839509bb)
+Signed-off-by: Yoann Congal <yoann.congal@smile.fr>
+Signed-off-by: Paul Barker <paul@pbarker.dev>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+---
+ meta/recipes-devtools/pseudo/pseudo_git.bb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meta/recipes-devtools/pseudo/pseudo_git.bb b/meta/recipes-devtools/pseudo/pseudo_git.bb
+index d08fe9f42c..bee6fcb149 100644
+--- a/meta/recipes-devtools/pseudo/pseudo_git.bb
++++ b/meta/recipes-devtools/pseudo/pseudo_git.bb
+@@ -12,7 +12,7 @@ SRC_URI:append:class-nativesdk = " \
+     file://older-glibc-symbols.patch"
+ SRC_URI[prebuilt.sha256sum] = "ed9f456856e9d86359f169f46a70ad7be4190d6040282b84c8d97b99072485aa"
+ 
+-SRCREV = "750362cc7b9fa58dffccd95d919b435c6d8ac614"
++SRCREV = "9ab513512d8b5180a430ae4fa738cb531154cdef"
+ S = "${WORKDIR}/git"
+ PV = "1.9.3+git"
+ 
+-- 
+2.55.0
+

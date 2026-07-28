@@ -8,6 +8,8 @@
 
 header:
   version: 19
+  includes:
+    - kas/patches/pseudo-bug-fix.yml
 
 defaults:
   repos:

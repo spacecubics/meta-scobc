@@ -1,0 +1,43 @@
+From 3bcac51eb27b6e0efe54d44a66730d651cf9f6ac Mon Sep 17 00:00:00 2001
+From: Richard Purdie <richard.purdie@linuxfoundation.org>
+Date: Tue, 13 Jan 2026 10:53:34 +0000
+Subject: [PATCH 5/8] pseudo: Update to pull in openat2 and efault return code
+ changes
+
+Pulls in the following fixes:
+
+ * makewrappers: Enable a new efault option
+ * ports/linux/openat2: Add dummy wrapper
+ * test-syscall: Add a syscall test
+ * ports/linux/pseudo_wrappers: Avoid openat2 usage via syscall
+
+which should fix issues with the tar CVE fix on Centos/Alma/Rocky 9 distros
+that uses openat2 as well as the efault issue breaking rust based uutils.
+
+(From OE-Core rev: a872357343b29530d05823368cfc8863a798412d)
+
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+(cherry picked from commit 51f1388dd1679a28ec3ca468cf16aa0ea32bccf9)
+Signed-off-by: Yoann Congal <yoann.congal@smile.fr>
+Signed-off-by: Paul Barker <paul@pbarker.dev>
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+---
+ meta/recipes-devtools/pseudo/pseudo_git.bb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meta/recipes-devtools/pseudo/pseudo_git.bb b/meta/recipes-devtools/pseudo/pseudo_git.bb
+index 87730511a9..19da3d4e08 100644
+--- a/meta/recipes-devtools/pseudo/pseudo_git.bb
++++ b/meta/recipes-devtools/pseudo/pseudo_git.bb
+@@ -12,7 +12,7 @@ SRC_URI:append:class-nativesdk = " \
+     file://older-glibc-symbols.patch"
+ SRC_URI[prebuilt.sha256sum] = "ed9f456856e9d86359f169f46a70ad7be4190d6040282b84c8d97b99072485aa"
+ 
+-SRCREV = "d1db9c219abf92f15303486a409292237f1fc790"
++SRCREV = "9ce8c09980af23ebd4ebf072010469882d0459a6"
+ S = "${WORKDIR}/git"
+ PV = "1.9.2+git"
+ 
+-- 
+2.55.0
+
