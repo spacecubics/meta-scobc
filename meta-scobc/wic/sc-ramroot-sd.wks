@@ -1,0 +1,4 @@
+# Description: Creates a bootable SD card image for RAM-root operation.
+# All boot artifacts, including the initramfs, are placed in a single VFAT partition.
+# No separate rootfs partition is created because the root filesystem is loaded into and used directly from RAM.
+part /boot --source bootimg-partition --fixed-size=512M --fstype=vfat --use-label --label boot  --align 4 --active

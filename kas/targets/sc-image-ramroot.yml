@@ -1,0 +1,16 @@
+header:
+  version: 19
+
+target:
+  - sc-image-ramroot
+
+local_conf_header:
+  initramfs-image-name: |
+    INITRAMFS_IMAGE = "sc-initramfs-image-minimal"
+
+  enable-ramroot: |
+    INITRAMFS_FSTYPES = "cpio.gz cpio.gz.u-boot"
+    INITRAMFS_IMAGE_BUNDLE = "0"
+
+    KERNEL_CLASSES:append = " kernel-fitimage"
+    KERNEL_IMAGETYPES:append = " fitImage"
