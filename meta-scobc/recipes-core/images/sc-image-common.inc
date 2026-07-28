@@ -34,6 +34,10 @@ IMAGE_INSTALL = " \
     ${CORE_IMAGE_EXTRA_INSTALL} \
     "
 
+IMAGE_INSTALL:append = " \
+    ${@' xilinx-fpd-watchdogd' if bb.utils.to_boolean(d.getVar('ENABLE_XILINX_FPD_WWDT'), False) else ''} \
+"
+
 #Create devfs entries for initramfs(bundle) image
 USE_DEVFS = "${@'0' if d.getVar('INITRAMFS_IMAGE_BUNDLE') == '1' else '1'}"
 IMAGE_DEVICE_TABLES:append = " files/plnx_dev_table.txt"
