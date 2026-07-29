@@ -17,3 +17,7 @@ SRC_URI:append = " \
 SRC_URI:append = " \
     ${@' file://container.cfg' if bb.utils.to_boolean(d.getVar('ENABLE_CONTAINER'), False) else ''} \
 "
+
+SRC_URI:append = " \
+    ${@' file://scobc-v1-openamp.cfg' if bb.utils.to_boolean(d.getVar('ENABLE_OPENAMP'), False) else ''} \
+"

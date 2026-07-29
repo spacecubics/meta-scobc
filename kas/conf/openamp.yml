@@ -1,0 +1,9 @@
+header:
+  version: 19
+
+local_conf_header:
+  openamp: |
+    ENABLE_OPENAMP = "1"
+    # To use the OpenAMP device tree provided by meta-scobc
+    # instead of meta-xilinx one
+    ENABLE_OPENAMP_DTSI = "2"

@@ -1,0 +1,100 @@
+/*
+ * Linux OpenAMP remoteproc and RPMsg resources for the lockstep Versal RPU
+ */
+
+#include <dt-bindings/power/xlnx-versal-power.h>
+#include <linux/sizes.h>
+
+&{/} {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/*
+		 * Use the default Versal OpenAMP DDR layout from AMD UG1186. These
+		 * addresses are a software contract between Linux and the RPU
+		 * firmware, not fixed hardware addresses. The 2 MiB-aligned window
+		 * also lets Zephyr map all shared memory with one MPU region.
+		 *
+		 * 0x09800000-0x0985ffff: firmware carveout (384 KiB)
+		 * 0x09860000-0x09863fff: vring0 (16 KiB)
+		 * 0x09864000-0x09867fff: vring1 (16 KiB)
+		 * 0x09868000-0x09967fff: RPMsg buffers (1 MiB)
+		 */
+		rproc0_reserved: rproc0@9800000 {
+			no-map;
+			reg = <0x0 0x09800000 0x0 (SZ_256K + SZ_128K)>;
+		};
+
+		/*
+		 * Zephyr uses the lower half of OCM for runtime data, BSS, stacks,
+		 * and heaps.  The upper half remains available to TF-A BL31.
+		 */
+		rproc0_ocm: rproc0-ocm@fffc0000 {
+			no-map;
+			reg = <0x0 0xfffc0000 0x0 SZ_128K>;
+		};
+
+		rpu0vdev0vring0: vdev0vring0@9860000 {
+			no-map;
+			reg = <0x0 0x09860000 0x0 SZ_16K>;
+		};
+
+		rpu0vdev0vring1: vdev0vring1@9864000 {
+			no-map;
+			reg = <0x0 0x09864000 0x0 SZ_16K>;
+		};
+
+		rpu0vdev0buffer: vdev0buffer@9868000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x09868000 0x0 SZ_1M>;
+		};
+	};
+
+	rpu0: remoteproc@ffe00000 {
+		compatible = "xlnx,versal-r5fss";
+		xlnx,cluster-mode = <1>;
+		xlnx,tcm-mode = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		/*
+		 * In lockstep mode the RPU sees both cores' TCM banks as one
+		 * combined 256 KiB address space.
+		 */
+		/* Follow reg-names order: ATCM0, BTCM0, ATCM1, BTCM1. */
+		ranges = <0x0 0x00000000 0x0 0xffe00000 0x0 SZ_64K>,
+			 <0x0 0x00020000 0x0 0xffe20000 0x0 SZ_64K>,
+			 <0x0 0x00010000 0x0 0xffe10000 0x0 SZ_64K>,
+			 <0x0 0x00030000 0x0 0xffe30000 0x0 SZ_64K>;
+
+		rpu0_core: r5f@0 {
+			compatible = "xlnx,versal-r5f";
+			reg-names = "atcm0", "btcm0", "atcm1", "btcm1";
+			reg = <0x0 0x00000000 0x0 SZ_64K>,
+			      <0x0 0x00020000 0x0 SZ_64K>,
+			      <0x0 0x00010000 0x0 SZ_64K>,
+			      <0x0 0x00030000 0x0 SZ_64K>;
+			memory-region = <&rproc0_reserved>,
+					<&rproc0_ocm>,
+					<&rpu0vdev0buffer>,
+					<&rpu0vdev0vring0>,
+					<&rpu0vdev0vring1>;
+			power-domains = <&versal_firmware PM_DEV_RPU0_0>,
+					<&versal_firmware PM_DEV_TCM_0_A>,
+					<&versal_firmware PM_DEV_TCM_0_B>,
+					<&versal_firmware PM_DEV_TCM_1_A>,
+					<&versal_firmware PM_DEV_TCM_1_B>;
+			mboxes = <&ipi_3_to_ipi_1 0>,
+				 <&ipi_3_to_ipi_1 1>;
+			mbox-names = "tx", "rx";
+		};
+	};
+};
+
+/* Reserve IPI1 for the RPU; Linux uses the IPI3-to-IPI1 child mailbox. */
+&ipi1 {
+	status = "disabled";
+};
