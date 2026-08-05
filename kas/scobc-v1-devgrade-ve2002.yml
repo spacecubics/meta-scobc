@@ -4,4 +4,4 @@ header:
     - kas/xilinx/v2025-2.yml
     - kas/sc/scobc.yml
     - kas/machine/versal-scobc-v1-ve2002e-sdt-full.yml
-    - kas/targets/sc-image-minimal.yml
+    - kas/targets/sc-image-ramroot.yml
