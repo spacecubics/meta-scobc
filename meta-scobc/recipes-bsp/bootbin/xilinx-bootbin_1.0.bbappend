@@ -15,3 +15,4 @@ BIF_PARTITION_ATTR:versal = "\
 "
 
 include ${@'xilinx-fpd-watchdog.inc' if bb.utils.to_boolean(d.getVar('ENABLE_XILINX_FPD_WWDT'), False) else ''}
+include ${@'xilinx-rpu-firmware.inc' if bb.utils.to_boolean(d.getVar('ENABLE_RPU_FIRMWARE'), False) else ''}
