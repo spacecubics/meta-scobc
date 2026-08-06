@@ -1,0 +1,13 @@
+header:
+  version: 19
+
+local_conf_header:
+  rpu-firmware: |
+    ENABLE_RPU_FIRMWARE = "1"
+  rpu-firmware-uri: |
+    RPU_FIRMWARE_URI ?= "https://downloads.spacecubics.com/developments/scobc-v1/builds/zephyr/scobc-v1-versal-rpu-zephyr-philosophers.elf"
+    RPU_FIRMWARE_URI[sha256sum] ?= "c3751ba40dfd2ed7e6865136bffb50b2a3a84894d1227cfd43e99b30cb67243d"
+
+env:
+  RPU_FIRMWARE_URI:
+  RPU_FIRMWARE_SHA256:
