@@ -1,0 +1,7 @@
+&ttc0 {
+	status = "disabled";
+};
+
+&serial1 {
+	status = "disabled";
+};

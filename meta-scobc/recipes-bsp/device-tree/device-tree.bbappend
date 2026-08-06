@@ -6,4 +6,5 @@ EXTRA_DT_INCLUDE_FILES:append:linux = " \
     ethernet.dtsi \
     norflash.dtsi \
     reset.dtsi \
+    rpu-peripherals.dtsi \
 "
