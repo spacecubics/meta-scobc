@@ -8,9 +8,15 @@ S = "${WORKDIR}"
 
 RDEPENDS:${PN} += "plnx-initramfs-framework-base"
 
+RAMROOT_SIZE ?= "2G"
+RAMROOT_SIZE:versal-scobc-v1-ve2002e-sdt-full = "2G"
+RAMROOT_SIZE:versal-scobc-v1-ve2302e-sdt-full = "2G"
+RAMROOT_SIZE:versal-scobc-v1-ve2302i-sdt-full = "2G"
+
 do_install() {
     install -d ${D}/init.d
     install -m 0755 ${WORKDIR}/ramroot ${D}/init.d/89-ramroot
+    sed -i -e 's/@@RAMROOT_SIZE@@/${RAMROOT_SIZE}/' ${D}/init.d/89-ramroot
 }
 
 FILES:${PN} = "/init.d/89-ramroot"

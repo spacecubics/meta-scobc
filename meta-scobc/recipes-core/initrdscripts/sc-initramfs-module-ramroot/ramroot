@@ -8,7 +8,7 @@ ramroot_run() {
     info "Creating RAM-backed root filesystem at '${ROOTFS_DIR}'..."
 
     mount -t tmpfs \
-        -o mode=0755,size=2G \
+        -o mode=0755,size=@@RAMROOT_SIZE@@ \
         tmpfs "${ROOTFS_DIR}" || \
         fatal "ERROR: Failed to mount tmpfs at '${ROOTFS_DIR}'."
 
