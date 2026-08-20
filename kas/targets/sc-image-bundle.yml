@@ -3,3 +3,8 @@ header:
 
 target:
   - sc-image-bundle
+
+local_conf_header:
+  initramfs-image-name: |
+
+  enable-ramroot: |
