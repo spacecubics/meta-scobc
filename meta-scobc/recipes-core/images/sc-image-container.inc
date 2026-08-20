@@ -14,5 +14,5 @@ WKS_FILES = "${@'sc-container-sd.wks' if bb.utils.to_boolean(d.getVar('ENABLE_CO
 
 IMAGE_INSTALL:append = " \
     ${@' docker-moby' if bb.utils.to_boolean(d.getVar('ENABLE_DOCKER'), False) else ''} \
-    ${@' podman slirp4netns fuse-overlayfs shadow' if bb.utils.to_boolean(d.getVar('ENABLE_PODMAN'), False) else ''} \
+    ${@' podman passt fuse-overlayfs shadow' if bb.utils.to_boolean(d.getVar('ENABLE_PODMAN'), False) else ''} \
 "
