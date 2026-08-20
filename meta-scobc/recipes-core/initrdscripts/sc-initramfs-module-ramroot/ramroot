@@ -1,0 +1,41 @@
+#!/bin/sh
+
+ramroot_enabled() {
+    return 0
+}
+
+ramroot_run() {
+    info "Creating RAM-backed root filesystem at '${ROOTFS_DIR}'..."
+
+    mount -t tmpfs \
+        -o mode=0755,size=2G \
+        tmpfs "${ROOTFS_DIR}" || \
+        fatal "ERROR: Failed to mount tmpfs at '${ROOTFS_DIR}'."
+
+    info "Copying initramfs root filesystem to '${ROOTFS_DIR}'..."
+
+    (
+        cd / || exit 1
+
+        tar \
+            --exclude='./rootfs' \
+            --exclude='./proc' \
+            --exclude='./sys' \
+            --exclude='./dev' \
+            -cf - .
+    ) | (
+        cd "${ROOTFS_DIR}" || exit 1
+        tar -xf -
+    ) || fatal "ERROR: Failed to populate RAM root filesystem."
+
+    mkdir -p \
+        "${ROOTFS_DIR}/dev" \
+        "${ROOTFS_DIR}/proc" \
+        "${ROOTFS_DIR}/sys" \
+        "${ROOTFS_DIR}/run" \
+        "${ROOTFS_DIR}/tmp"
+
+    chmod 1777 "${ROOTFS_DIR}/tmp"
+
+    info "RAM-backed root filesystem is ready."
+}
