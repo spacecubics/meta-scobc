@@ -2483,7 +2483,7 @@
                 compatible = "simple-bus";
                 #address-cells = <0x2>;
                 #size-cells = <0x2>;
-                firmware-name = "sc_obc_v1_versal_ve2302e_0e39a2dd.pdi";
+                firmware-name = "sc_obc_v1_versal_ve2302e_1d6401d6.pdi";
         };
 
         versal_noc_ddr_memory: memory@00000000 {
