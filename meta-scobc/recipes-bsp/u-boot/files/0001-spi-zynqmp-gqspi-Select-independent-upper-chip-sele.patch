@@ -1,0 +1,48 @@
+From b392b966c68a0f321553294493e7f5d0b823d6d0 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Wed, 2 Sep 2026 17:48:16 +0900
+Subject: [PATCH] spi: zynqmp-gqspi: Handle independent upper chip select
+
+The GQSPI driver only selects the upper chip select when SPI NOR marks
+an operation as accessing the upper half of a stacked memory. An
+independent device with reg = <1> therefore accesses the lower chip
+select instead.
+
+The upper chip-select deassert path also selects the upper data bus and
+does not provide the immediate-data delay used by the lower path. An
+independent device on CS1 uses the lower data bus, and needs the same
+chip-select hold time as a device on CS0.
+
+Use the physical chip select for independent devices while retaining
+the existing stacked-memory flag handling. Select the lower data bus
+and apply the normal deassert delay when releasing the upper chip
+select.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/spi/zynqmp_gqspi.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/spi/zynqmp_gqspi.c b/drivers/spi/zynqmp_gqspi.c
+index 4251bf28cd3..46384cf615f 100644
+--- a/drivers/spi/zynqmp_gqspi.c
++++ b/drivers/spi/zynqmp_gqspi.c
+@@ -327,7 +327,8 @@ static void zynqmp_qspi_chipselect(struct zynqmp_qspi_priv *priv, int is_on)
+ 			gqspi_fifo_reg = GQSPI_GFIFO_UP_BUS |
+ 					 GQSPI_GFIFO_LOW_BUS;
+ 		} else if (priv->u_page) {
+-			gqspi_fifo_reg = GQSPI_GFIFO_UP_BUS;
++			gqspi_fifo_reg = GQSPI_GFIFO_LOW_BUS |
++					 GQSPI_IMD_DATA_CS_DEASSERT;
+ 		} else {
+ 			gqspi_fifo_reg = GQSPI_GFIFO_LOW_BUS;
+ 			gqspi_fifo_reg |= GQSPI_IMD_DATA_CS_DEASSERT;
+@@ -860,7 +861,7 @@ static int zynqmp_qspi_exec_op(struct spi_slave *slave,
+ 	if (slave->flags & SPI_XFER_U_PAGE)
+ 		priv->u_page = 1;
+ 	else
+-		priv->u_page = 0;
++		priv->u_page = spi_chip_select(slave->dev);
+ 
+ 	if ((slave->flags & GQSPI_SELECT_LOWER_CS) &&
+ 	    (slave->flags & GQSPI_SELECT_UPPER_CS))
