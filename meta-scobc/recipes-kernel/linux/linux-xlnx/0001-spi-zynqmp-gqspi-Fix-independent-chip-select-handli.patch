@@ -1,0 +1,57 @@
+From 507e62158667acd8cbe2574d3661e3a85ef81c15 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Wed, 2 Sep 2026 17:48:15 +0900
+Subject: [PATCH] spi: zynqmp-gqspi: Fix independent chip select handling
+
+The SPI chip select index mask identifies active entries in the chip
+select array, not physical chip select numbers. Treating the mask as
+the physical selection causes every independent SPI device to use the
+lower chip select.
+
+Translate each active index with spi_get_chipselect() before selecting
+the lower, upper, or both targets. This preserves multi-CS operation
+while allowing independent devices on CS0 and CS1.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/spi/spi-zynqmp-gqspi.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/spi/spi-zynqmp-gqspi.c b/drivers/spi/spi-zynqmp-gqspi.c
+index d9d3f21f3043..74995161aa7a 100644
+--- a/drivers/spi/spi-zynqmp-gqspi.c
++++ b/drivers/spi/spi-zynqmp-gqspi.c
+@@ -516,22 +516,28 @@ static void zynqmp_qspi_chipselect(struct spi_device *qspi, bool is_high)
+ {
+ 	struct zynqmp_qspi *xqspi = spi_controller_get_devdata(qspi->controller);
+ 	ulong timeout;
+-	u32 genfifoentry = 0, statusreg;
++	u32 cs_mask = 0, genfifoentry = 0, statusreg;
++	unsigned int cs;
+ 
+ 	genfifoentry |= GQSPI_GENFIFO_MODE_SPI;
+ 
+-	if ((qspi->cs_index_mask & GQSPI_SELECT_LOWER_CS) &&
+-	    (qspi->cs_index_mask & GQSPI_SELECT_UPPER_CS)) {
++	for (cs = 0; cs < SPI_CS_CNT_MAX; cs++) {
++		if (qspi->cs_index_mask & BIT(cs))
++			cs_mask |= BIT(spi_get_chipselect(qspi, cs));
++	}
++
++	if ((cs_mask & GQSPI_SELECT_LOWER_CS) &&
++	    (cs_mask & GQSPI_SELECT_UPPER_CS)) {
+ 		zynqmp_gqspi_selecttarget(xqspi,
+ 					  GQSPI_SELECT_FLASH_CS_BOTH,
+ 					  GQSPI_SELECT_FLASH_BUS_BOTH);
+ 		if (!xqspi->is_parallel)
+ 			xqspi->is_parallel = true;
+-	} else if (qspi->cs_index_mask & GQSPI_SELECT_UPPER_CS) {
++	} else if (cs_mask & GQSPI_SELECT_UPPER_CS) {
+ 		zynqmp_gqspi_selecttarget(xqspi,
+ 					  GQSPI_SELECT_FLASH_CS_UPPER,
+ 					  GQSPI_SELECT_FLASH_BUS_LOWER);
+-	} else if (qspi->cs_index_mask & GQSPI_SELECT_LOWER_CS) {
++	} else if (cs_mask & GQSPI_SELECT_LOWER_CS) {
+ 		zynqmp_gqspi_selecttarget(xqspi,
+ 					  GQSPI_SELECT_FLASH_CS_LOWER,
+ 					  GQSPI_SELECT_FLASH_BUS_LOWER);
