@@ -1,0 +1,37 @@
+From a2135604e219dfbf6beb56d3dac76703af9e2c39 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Wed, 2 Sep 2026 00:00:00 +0900
+Subject: [PATCH] mtd: spi-nor: Add CY15V108QSN F-RAM support
+
+Add support for the 8-Mbit Infineon CY15V108QSN F-RAM.
+
+The datasheet specifies the 64-bit device ID as 0000000006805158 and
+states that RDID shifts the least significant byte first. Match the six
+bytes read by U-Boot as 58 51 80 06 00 00.
+
+F-RAM writes do not require an erase operation and the device does not
+provide SFDP. Expose its complete 1-MiB address space as an erase-free
+SPI NOR device.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi/spi-nor-ids.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
+index bc27ce8f864..6a57aa4f683 100644
+--- a/drivers/mtd/spi/spi-nor-ids.c
++++ b/drivers/mtd/spi/spi-nor-ids.c
+@@ -381,6 +381,9 @@ const struct flash_info spi_nor_ids[] = {
+ 	/* Spansion/Cypress -- single (large) sector size only, at least
+ 	 * for the chips listed here (without boot sectors).
+ 	 */
++	{ INFO6("cy15v108qsn", 0x585180, 0x060000, 1024 * 1024, 1,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP) },
++
+ 	{ INFO("s25sl032p",  0x010215, 0x4d00,  64 * 1024,  64, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ 	{ INFO("s25sl064p",  0x010216, 0x4d00,  64 * 1024, 128, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ 	{ INFO6("s25fl256s0", 0x010219, 0x4d0080, 256 * 1024, 128, SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | USE_CLSR) },
+-- 
+2.55.0
+
