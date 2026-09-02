@@ -1,0 +1,111 @@
+From faac3b0b10f8910238a843b5c9f987e66af1de24 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 2 Jul 2026 17:21:09 +0900
+Subject: [PATCH 2/2] sw_services: xilloader: Add Avalanche Dual Quad MRAM
+ support
+
+Add Avalanche Dual Quad MRAM manufacturer ID detection and RDID byte 2
+decoding.
+
+Avalanche devices encode temperature and density in RDID byte 2. Decode
+the supported package densities and set the per-device size used by the
+existing dual-parallel QSPI size adjustment.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ .../src/common/server/xloader_qspi.c          | 31 ++++++++++++++++++-
+ .../src/common/server/xloader_qspi.h          | 22 +++++++++++++
+ 2 files changed, 52 insertions(+), 1 deletion(-)
+
+diff --git a/lib/sw_services/xilloader/src/common/server/xloader_qspi.c b/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
+index 060553a..c39682a 100644
+--- a/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
++++ b/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
+@@ -161,6 +161,10 @@ static int FlashReadID(XQspiPsu *QspiPsuPtr)
+ 		QspiFlashMake = XLOADER_ISSI_ID;
+ 		XLoader_Printf(DEBUG_INFO, "ISSI ");
+ 	}
++	else if(ReadBuffer[0U] == XLOADER_AVALANCHE_ID) {
++		QspiFlashMake = XLOADER_AVALANCHE_ID;
++		XLoader_Printf(DEBUG_INFO, "AVALANCHE ");
++	}
+ 	else {
+ 		Status = XPlmi_UpdateStatus(XLOADER_ERR_UNSUPPORTED_QSPI_FLASH_ID, 0);
+ 		XLoader_Printf(DEBUG_INFO,
+@@ -172,7 +176,32 @@ static int FlashReadID(XQspiPsu *QspiPsuPtr)
+ 	/**
+ 	 * - Deduce flash Size.
+ 	 */
+-	if (ReadBuffer[2U] == XLOADER_FLASH_SIZE_ID_64M) {
++	if (QspiFlashMake == XLOADER_AVALANCHE_ID) {
++		if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_512M) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_512M;
++			XLoader_Printf(DEBUG_INFO, "512M Bits\r\n");
++		}
++		else if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_1G) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_1G;
++			XLoader_Printf(DEBUG_INFO, "1G Bits\r\n");
++		}
++		else if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_2G) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_2G;
++			XLoader_Printf(DEBUG_INFO, "2G Bits\r\n");
++		}
++		else if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_4G) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_4G;
++			XLoader_Printf(DEBUG_INFO, "4G Bits\r\n");
++		}
++		else {
++			Status = XPlmi_UpdateStatus(XLOADER_ERR_UNSUPPORTED_QSPI_FLASH_SIZE, 0);
++			XLoader_Printf(DEBUG_INFO,
++					"XLOADER_ERR_UNSUPPORTED_QSPI - Unsupported"
++					" FlashSize \r\n");
++			goto END;
++		}
++	}
++	else if (ReadBuffer[2U] == XLOADER_FLASH_SIZE_ID_64M) {
+ 		QspiFlashSize = XLOADER_FLASH_SIZE_64M;
+ 		XLoader_Printf(DEBUG_INFO, "64M Bits\r\n");
+ 	}
+diff --git a/lib/sw_services/xilloader/src/common/server/xloader_qspi.h b/lib/sw_services/xilloader/src/common/server/xloader_qspi.h
+index 6d745fd..c91bd8c 100644
+--- a/lib/sw_services/xilloader/src/common/server/xloader_qspi.h
++++ b/lib/sw_services/xilloader/src/common/server/xloader_qspi.h
+@@ -116,6 +116,7 @@ extern "C" {
+ #define XLOADER_WINBOND_ID		(0xEFU)
+ #define XLOADER_MACRONIX_ID		(0xC2U)
+ #define XLOADER_ISSI_ID			(0x9DU)
++#define XLOADER_AVALANCHE_ID		(0xE6U)
+ 
+ /* Macronix size constants for 1.8V and 3.3 parts. */
+ #define XLOADER_MACRONIX_FLASH_SIZE_ID_512M		(0x1AU)
+@@ -131,6 +132,27 @@ extern "C" {
+ #define XLOADER_INFINEON_FLASH_SIZE_ID_1G		(0x1BU)
+ #define XLOADER_INFINEON_FLASH_SIZE_ID_2G		(0x1CU)
+ 
++/*
++ * Avalanche RDID byte 2 is Temp[7:4]:Density[3:0].
++ * For dual-parallel QSPI, set the per-device size here.
++ * PLM doubles it after FlashReadID().
++ */
++#define XLOADER_AVALANCHE_MRAM_TEMP_RANGE_M40_125	(0x2U)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_1G		(0x8U)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_2G		(0x9U)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_4G		(0xAU)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_8G		(0xCU)
++#define XLOADER_AVALANCHE_MRAM_ID_BYTE2(density) \
++	((XLOADER_AVALANCHE_MRAM_TEMP_RANGE_M40_125 << 4U) | (density))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_512M \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_1G))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_1G \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_2G))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_2G \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_4G))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_4G \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_8G))
++
+ /*Qspi width detection macros*/
+ #define XLOADER_QSPI_BUSWIDTH_DETECT_VALUE	(0xAA995566U)
+ #define XLOADER_QSPI_BUSWIDTH_PDI_OFFSET	(0x10U)
+-- 
+2.54.0
+
