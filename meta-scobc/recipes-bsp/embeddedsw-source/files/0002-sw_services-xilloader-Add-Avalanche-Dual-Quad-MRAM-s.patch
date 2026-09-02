@@ -1,0 +1,213 @@
+From 67bc7bdb30e22313cd2b5e8ea7e834f70c9864b6 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 2 Jul 2026 17:21:09 +0900
+Subject: [PATCH 2/2] sw_services: xilloader: Add Avalanche Dual Quad MRAM
+ support
+
+Add Avalanche Dual Quad MRAM manufacturer ID detection and RDID byte 2
+decoding.
+
+Avalanche devices encode temperature and density in RDID byte 2. Decode
+the supported package densities and set the per-device size used by the
+existing dual-parallel QSPI size adjustment.
+
+In QSPI24 mode, program the Avalanche extended address register when a
+read crosses a 16 MiB boundary. This allows PLM to load boot data from
+the full device rather than only its first 16 MiB segment.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ .../src/common/server/xloader_qspi.c          | 95 ++++++++++++++++++-
+ .../src/common/server/xloader_qspi.h          | 28 ++++++
+ 2 files changed, 121 insertions(+), 2 deletions(-)
+
+diff --git a/lib/sw_services/xilloader/src/common/server/xloader_qspi.c b/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
+index 060553abb7..4300ba3f6e 100644
+--- a/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
++++ b/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
+@@ -161,6 +161,10 @@ static int FlashReadID(XQspiPsu *QspiPsuPtr)
+ 		QspiFlashMake = XLOADER_ISSI_ID;
+ 		XLoader_Printf(DEBUG_INFO, "ISSI ");
+ 	}
++	else if(ReadBuffer[0U] == XLOADER_AVALANCHE_ID) {
++		QspiFlashMake = XLOADER_AVALANCHE_ID;
++		XLoader_Printf(DEBUG_INFO, "AVALANCHE ");
++	}
+ 	else {
+ 		Status = XPlmi_UpdateStatus(XLOADER_ERR_UNSUPPORTED_QSPI_FLASH_ID, 0);
+ 		XLoader_Printf(DEBUG_INFO,
+@@ -172,7 +176,32 @@ static int FlashReadID(XQspiPsu *QspiPsuPtr)
+ 	/**
+ 	 * - Deduce flash Size.
+ 	 */
+-	if (ReadBuffer[2U] == XLOADER_FLASH_SIZE_ID_64M) {
++	if (QspiFlashMake == XLOADER_AVALANCHE_ID) {
++		if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_512M) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_512M;
++			XLoader_Printf(DEBUG_INFO, "512M Bits\r\n");
++		}
++		else if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_1G) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_1G;
++			XLoader_Printf(DEBUG_INFO, "1G Bits\r\n");
++		}
++		else if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_2G) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_2G;
++			XLoader_Printf(DEBUG_INFO, "2G Bits\r\n");
++		}
++		else if (ReadBuffer[2U] == XLOADER_AVALANCHE_MRAM_SIZE_ID_4G) {
++			QspiFlashSize = XLOADER_FLASH_SIZE_4G;
++			XLoader_Printf(DEBUG_INFO, "4G Bits\r\n");
++		}
++		else {
++			Status = XPlmi_UpdateStatus(XLOADER_ERR_UNSUPPORTED_QSPI_FLASH_SIZE, 0);
++			XLoader_Printf(DEBUG_INFO,
++					"XLOADER_ERR_UNSUPPORTED_QSPI - Unsupported"
++					" FlashSize \r\n");
++			goto END;
++		}
++	}
++	else if (ReadBuffer[2U] == XLOADER_FLASH_SIZE_ID_64M) {
+ 		QspiFlashSize = XLOADER_FLASH_SIZE_64M;
+ 		XLoader_Printf(DEBUG_INFO, "64M Bits\r\n");
+ 	}
+@@ -585,7 +614,7 @@ static int SendBankSelect(u32 BankSel)
+ 		goto END;
+ 	}
+ 	/*
+-	 * Bank select commands for Micron and Spansion are different.
++	 * Bank select commands differ by flash manufacturer.
+ 	 * Macronix bank select is same as Micron.
+ 	 */
+ 	if ((QspiFlashMake == XLOADER_MICRON_ID) ||
+@@ -656,6 +685,68 @@ static int SendBankSelect(u32 BankSel)
+ 			goto END;
+ 		}
+ 	}
++	else if (QspiFlashMake == XLOADER_AVALANCHE_ID) {
++		if (BankSel > XLOADER_AVALANCHE_EXTADD_REG_MASK) {
++			Status = XPlmi_UpdateStatus(XLOADER_ERR_QSPI_READ,
++					XST_FAILURE);
++			XLoader_Printf(DEBUG_INFO,
++					"XLOADER_ERR_QSPI_READ - Invalid bank\r\n");
++			goto END;
++		}
++
++		/**
++		 * - Avalanche WRAR requires WREN before writing the extended
++		 * address register.
++		 */
++		TxBfr = XLOADER_WRITE_ENABLE_CMD;
++		FlashMsg[0U].TxBfrPtr = &TxBfr;
++		FlashMsg[0U].RxBfrPtr = NULL;
++		FlashMsg[0U].ByteCount = XLOADER_QSPI_WRITE_ENABLE_CMD_BYTE_CNT;
++		FlashMsg[0U].BusWidth = XQSPIPSU_SELECT_MODE_SPI;
++		FlashMsg[0U].Flags = XQSPIPSU_MSG_FLAG_TX;
++
++		Status = XQspiPsu_PolledTransfer(&QspiPsuInstance,
++					&FlashMsg[0U], 1U);
++		if (Status != XST_SUCCESS) {
++			Status = XPlmi_UpdateStatus(XLOADER_ERR_QSPI_READ,
++					Status);
++			XLoader_Printf(DEBUG_INFO,
++					"XLOADER_ERR_QSPI_READ\r\n");
++			goto END;
++		}
++
++		/**
++		 * - Write EAR through the four-byte address-based register command.
++		 */
++		WriteBuffer[XLOADER_COMMAND_OFST] = XLOADER_AVALANCHE_WRAR_CMD;
++		WriteBuffer[XLOADER_ADDR_1_OFST] =
++			(u8)(XLOADER_AVALANCHE_EXTADD_REG_ADDR >> 24U);
++		WriteBuffer[XLOADER_ADDR_2_OFST] =
++			(u8)(XLOADER_AVALANCHE_EXTADD_REG_ADDR >> 16U);
++		WriteBuffer[XLOADER_ADDR_3_OFST] =
++			(u8)(XLOADER_AVALANCHE_EXTADD_REG_ADDR >> 8U);
++		WriteBuffer[XLOADER_ADDR_4_OFST] =
++			(u8)XLOADER_AVALANCHE_EXTADD_REG_ADDR;
++		WriteBuffer[XLOADER_AVALANCHE_WRAR_DATA_OFST] = (u8)BankSel;
++
++		FlashMsg[0U].TxBfrPtr = WriteBuffer;
++		FlashMsg[0U].RxBfrPtr = NULL;
++		FlashMsg[0U].ByteCount = XLOADER_AVALANCHE_WRAR_CMD_BYTE_CNT;
++		FlashMsg[0U].BusWidth = XQSPIPSU_SELECT_MODE_SPI;
++		FlashMsg[0U].Flags = XQSPIPSU_MSG_FLAG_TX;
++
++		Status = XQspiPsu_PolledTransfer(&QspiPsuInstance,
++					&FlashMsg[0U], 1U);
++		if (Status != XST_SUCCESS) {
++			Status = XPlmi_UpdateStatus(XLOADER_ERR_QSPI_READ,
++					Status);
++			XLoader_Printf(DEBUG_INFO,
++					"XLOADER_ERR_QSPI_READ\r\n");
++			goto END;
++		}
++
++		usleep(XLOADER_AVALANCHE_REG_WRITE_DELAY_US);
++	}
+ 	else if (QspiFlashMake == XLOADER_SPANSION_ID) {
+ 		/**
+ 		 * Send the Extended address register write command
+diff --git a/lib/sw_services/xilloader/src/common/server/xloader_qspi.h b/lib/sw_services/xilloader/src/common/server/xloader_qspi.h
+index 6d745fd066..a7679aa653 100644
+--- a/lib/sw_services/xilloader/src/common/server/xloader_qspi.h
++++ b/lib/sw_services/xilloader/src/common/server/xloader_qspi.h
+@@ -71,6 +71,9 @@ extern "C" {
+ /* Bank register is called Extended Addr Reg in Micron */
+ #define XLOADER_EXTADD_REG_RD_CMD	(0xC8U)
+ #define XLOADER_EXTADD_REG_WR_CMD	(0xC5U)
++#define XLOADER_AVALANCHE_WRAR_CMD	(0x71U)
++#define XLOADER_AVALANCHE_EXTADD_REG_ADDR	(0x00000009U)
++#define XLOADER_AVALANCHE_EXTADD_REG_MASK	(0x1FU)
+ 
+ #define XLOADER_COMMAND_OFST	(0U) /* FLASH instruction */
+ #define XLOADER_ADDR_1_OFST	(1U) /* MSB byte of address to read or write */
+@@ -116,6 +119,7 @@ extern "C" {
+ #define XLOADER_WINBOND_ID		(0xEFU)
+ #define XLOADER_MACRONIX_ID		(0xC2U)
+ #define XLOADER_ISSI_ID			(0x9DU)
++#define XLOADER_AVALANCHE_ID		(0xE6U)
+ 
+ /* Macronix size constants for 1.8V and 3.3 parts. */
+ #define XLOADER_MACRONIX_FLASH_SIZE_ID_512M		(0x1AU)
+@@ -131,6 +135,27 @@ extern "C" {
+ #define XLOADER_INFINEON_FLASH_SIZE_ID_1G		(0x1BU)
+ #define XLOADER_INFINEON_FLASH_SIZE_ID_2G		(0x1CU)
+ 
++/*
++ * Avalanche RDID byte 2 is Temp[7:4]:Density[3:0].
++ * For dual-parallel QSPI, set the per-device size here.
++ * PLM doubles it after FlashReadID().
++ */
++#define XLOADER_AVALANCHE_MRAM_TEMP_RANGE_M40_125	(0x2U)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_1G		(0x8U)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_2G		(0x9U)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_4G		(0xAU)
++#define XLOADER_AVALANCHE_MRAM_DENSITY_8G		(0xCU)
++#define XLOADER_AVALANCHE_MRAM_ID_BYTE2(density) \
++	((XLOADER_AVALANCHE_MRAM_TEMP_RANGE_M40_125 << 4U) | (density))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_512M \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_1G))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_1G \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_2G))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_2G \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_4G))
++#define XLOADER_AVALANCHE_MRAM_SIZE_ID_4G \
++	(XLOADER_AVALANCHE_MRAM_ID_BYTE2(XLOADER_AVALANCHE_MRAM_DENSITY_8G))
++
+ /*Qspi width detection macros*/
+ #define XLOADER_QSPI_BUSWIDTH_DETECT_VALUE	(0xAA995566U)
+ #define XLOADER_QSPI_BUSWIDTH_PDI_OFFSET	(0x10U)
+@@ -148,6 +173,9 @@ extern "C" {
+ #define XLOADER_EXTADD_REG_RD_CMD_BYTE_CNT	(1U)
+ #define XLOADER_BANK_REG_WR_CMD_BYTE_CNT	(2U)
+ #define XLOADER_BANK_REG_RD_CMD_BYTE_CNT	(1U)
++#define XLOADER_AVALANCHE_WRAR_CMD_BYTE_CNT	(6U)
++#define XLOADER_AVALANCHE_WRAR_DATA_OFST		(5U)
++#define XLOADER_AVALANCHE_REG_WRITE_DELAY_US	(1U)
+ 
+ /**************************** Type Definitions *******************************/
+ 
+-- 
+2.55.0
+
