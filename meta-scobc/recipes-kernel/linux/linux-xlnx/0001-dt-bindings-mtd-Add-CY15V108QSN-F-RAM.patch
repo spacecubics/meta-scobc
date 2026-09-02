@@ -1,0 +1,30 @@
+From 6ab90693c962e17e61ddfb9dfc8f6c918c35e745 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 3 Sep 2026 00:00:00 +0900
+Subject: [PATCH] dt-bindings: mtd: Add CY15V108QSN F-RAM compatible
+
+The Infineon CY15V108QSN is an 8-Mbit SPI F-RAM that implements the
+JEDEC RDID command.
+
+Document its specific compatible with jedec,spi-nor as a fallback.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml b/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
+index 6e3afb4..c25c008 100644
+--- a/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
++++ b/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
+@@ -33,6 +33,7 @@ properties:
+           - const: jedec,spi-nor
+       - items:
+           - enum:
++              - cypress,cy15v108qsn
+               - issi,is25lp016d
+               - micron,mt25qu02g
+               - mxicy,mx25r1635f
+-- 
+2.55.0
+
