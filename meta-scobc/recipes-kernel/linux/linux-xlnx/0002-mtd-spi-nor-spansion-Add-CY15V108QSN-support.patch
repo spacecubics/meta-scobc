@@ -1,0 +1,43 @@
+From 802d0f673f9ba6a98a217668662493dd933c9fb2 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Wed, 2 Sep 2026 00:00:00 +0900
+Subject: [PATCH] mtd: spi-nor: spansion: Add CY15V108QSN support
+
+Add support for the 8-Mbit Infineon CY15V108QSN F-RAM.
+
+The datasheet specifies the 64-bit device ID as 0000000006805158 and
+states that RDID shifts the least significant byte first.  Match the
+first six bytes returned by the SPI NOR core as 58 51 80 06 00 00.
+
+The device does not require erase operations and does not provide SFDP.
+Use the standard single-bit READ and Page Program commands so the full
+device can be exposed as a raw erase-free MTD.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi-nor/spansion.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/drivers/mtd/spi-nor/spansion.c b/drivers/mtd/spi-nor/spansion.c
+index 69ba7fd..d9d65d8 100644
+--- a/drivers/mtd/spi-nor/spansion.c
++++ b/drivers/mtd/spi-nor/spansion.c
+@@ -1007,6 +1007,15 @@ static const struct flash_info spansion_nor_parts[] = {
+ 		.size = SZ_512K,
+ 		.sector_size = SZ_512K,
+ 		.flags = SPI_NOR_NO_ERASE,
++	}, {
++		/* CY15V108QSN */
++		.name = "cy15v108qsn",
++		.id = SNOR_ID(0x58, 0x51, 0x80, 0x06, 0x00, 0x00),
++		.size = SZ_1M,
++		.sector_size = SZ_1M,
++		.addr_nbytes = 3,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP,
+ 	}, {
+ 		.id = SNOR_ID(0x34, 0x2a, 0x1a, 0x0f, 0x03, 0x90),
+ 		.name = "s25hl512t",
+-- 
+2.55.0
+
