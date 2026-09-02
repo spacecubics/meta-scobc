@@ -1,7 +1,7 @@
 &qspi {
 	status = "okay";
 
-	s25fs512s0: flash@0 {
+	boot_memory: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "spansion,s25fs512s", "jedec,spi-nor";
