@@ -1,0 +1,123 @@
+From a8cb6a6de10741822423213201ed27fd52582cea Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 2 Jul 2026 19:03:21 +0900
+Subject: [PATCH] mtd: spi-nor: Add Avalanche Dual Quad MRAM support
+
+Add Avalanche Dual Quad MRAM device definitions and configuration.
+
+The devices do not require a Quad Enable bit. Suppress the generic
+Spansion-style Quad Enable operation before enabling quad reads.
+
+The 1-Gbit and larger devices always use four-byte addresses. Their
+dedicated four-byte read opcodes follow the standard mappings, while
+page program continues to use opcode 02h with a four-byte address.
+Convert only the read opcode so U-Boot does not issue unsupported
+address-mode entry commands or substitute the page-program opcode.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi/Kconfig        |  5 +++++
+ drivers/mtd/spi/spi-nor-core.c | 24 ++++++++++++++++++++++++
+ drivers/mtd/spi/spi-nor-ids.c  | 14 ++++++++++++++
+ include/linux/mtd/spi-nor.h    |  1 +
+ 4 files changed, 44 insertions(+)
+
+diff --git a/drivers/mtd/spi/Kconfig b/drivers/mtd/spi/Kconfig
+index 63c7d95e355..50a9f347b8b 100644
+--- a/drivers/mtd/spi/Kconfig
++++ b/drivers/mtd/spi/Kconfig
+@@ -246,6 +246,11 @@ config SPI_FLASH_ZBIT
+ 	help
+ 	  Add support for Zbit Semiconductor Inc. SPI flash chips (ZB25xxx).
+ 
++config SPI_FLASH_AVALANCHE
++	bool "Avalanche Dual QSPI MRAM support"
++	help
++	  Add support for Avalanche Dual QSPI MRAM chips (AS30xG208).
++
+ endif
+ 
+ config SPI_FLASH_USE_4K_SECTORS
+diff --git a/drivers/mtd/spi/spi-nor-core.c b/drivers/mtd/spi/spi-nor-core.c
+index 40d88365bde..655ca5062e4 100644
+--- a/drivers/mtd/spi/spi-nor-core.c
++++ b/drivers/mtd/spi/spi-nor-core.c
+@@ -726,6 +726,10 @@ static void spi_nor_set_4byte_opcodes(struct spi_nor *nor,
+ 
+ 	/* Do some manufacturer fixups first */
+ 	switch (JEDEC_MFR(info)) {
++	case SNOR_MFR_AVALANCHE:
++		nor->read_opcode = spi_nor_convert_3to4_read(nor->read_opcode);
++		return;
++
+ 	case SNOR_MFR_SPANSION:
+ 		/* No small sector erase for 4-byte command set */
+ 		nor->erase_opcode = SPINOR_OP_SE;
+@@ -6243,8 +6247,28 @@ int spi_nor_remove(struct spi_nor *nor)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_SPI_FLASH_AVALANCHE
++static void avalanche_late_init(struct spi_nor *nor,
++				struct spi_nor_flash_parameter *params)
++{
++	(void)nor;
++
++	/* Quad output reads do not require a Quad Enable bit. */
++	params->quad_enable = NULL;
++}
++
++static struct spi_nor_fixups avalanche_fixups = {
++	.late_init = avalanche_late_init,
++};
++#endif
++
+ void spi_nor_set_fixups(struct spi_nor *nor)
+ {
++#ifdef CONFIG_SPI_FLASH_AVALANCHE
++	if (JEDEC_MFR(nor->info) == SNOR_MFR_AVALANCHE)
++		nor->fixups = &avalanche_fixups;
++#endif
++
+ #ifdef CONFIG_SPI_FLASH_SPANSION
+ 	if (JEDEC_MFR(nor->info) == SNOR_MFR_CYPRESS) {
+ 		switch (nor->info->id[1]) {
+diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
+index bc27ce8f864..49b7da0f5b9 100644
+--- a/drivers/mtd/spi/spi-nor-ids.c
++++ b/drivers/mtd/spi/spi-nor-ids.c
+@@ -77,6 +77,20 @@ const struct flash_info spi_nor_ids[] = {
+ 	{ INFO("at25sl321",	0x1f4216, 0, 64 * 1024,  64, SECT_4K) },
+ 	{ INFO("at26df081a",	0x1f4501, 0, 64 * 1024,  16, SECT_4K) },
+ #endif
++#ifdef CONFIG_SPI_FLASH_AVALANCHE	/* AVALANCHE */
++	{ INFO("as3064204", 0xe62121, 0, 64 * 1024, 128,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ) },
++	{ INFO("as3128208", 0xe62122, 0, 64 * 1024, 128,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ) },
++	{ INFO("as301g208", 0xe62128, 0, 64 * 1024, 1024,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++	{ INFO("as302g208", 0xe62129, 0, 64 * 1024, 2048,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++	{ INFO("as304g208", 0xe6212a, 0, 64 * 1024, 4096,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++	{ INFO("as308g208", 0xe6212c, 0, 64 * 1024, 8192,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
++#endif
+ #ifdef CONFIG_SPI_FLASH_EON		/* EON */
+ 	/* EON -- en25xxx */
+ 	{ INFO("en25q80b",   0x1c3014, 0, 64 * 1024,   16, SECT_4K) },
+diff --git a/include/linux/mtd/spi-nor.h b/include/linux/mtd/spi-nor.h
+index d3787db7054..375d8d7b456 100644
+--- a/include/linux/mtd/spi-nor.h
++++ b/include/linux/mtd/spi-nor.h
+@@ -22,6 +22,7 @@
+  * The first byte returned from the flash after sending opcode SPINOR_OP_RDID.
+  * Sometimes these are the same as CFI IDs, but sometimes they aren't.
+  */
++#define SNOR_MFR_AVALANCHE	0xe6
+ #define SNOR_MFR_ATMEL		CFI_MFR_ATMEL
+ #define SNOR_MFR_GIGADEVICE	0xc8
+ #define SNOR_MFR_INTEL		CFI_MFR_INTEL
+-- 
+2.55.0
