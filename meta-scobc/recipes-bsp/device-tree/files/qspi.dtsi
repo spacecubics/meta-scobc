@@ -1,6 +1,9 @@
 &qspi {
 	status = "okay";
 
+	/delete-property/ is-stacked;
+	/delete-property/ is-dual;
+
 	boot_memory: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
