@@ -1,0 +1,50 @@
+From f76e48429e66e5ea449213f12da615d23fb2f62c Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 3 Sep 2026 00:00:00 +0900
+Subject: [PATCH] dt-bindings: mtd: Add Avalanche MRAM compatibles
+
+Avalanche AS30 series MRAM devices implement the SPI NOR command set
+and provide JEDEC RDID values.
+
+Document their specific compatibles with jedec,spi-nor as a fallback,
+and add the Avalanche Technology vendor prefix.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml | 6 ++++++
+ Documentation/devicetree/bindings/vendor-prefixes.yaml   | 2 ++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml b/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
+index c25c008..c94d88d 100644
+--- a/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
++++ b/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
+@@ -33,6 +33,12 @@ properties:
+           - const: jedec,spi-nor
+       - items:
+           - enum:
++              - avalanche,as301g208
++              - avalanche,as302g208
++              - avalanche,as304g208
++              - avalanche,as3064204
++              - avalanche,as308g208
++              - avalanche,as3128208
+               - cypress,cy15v108qsn
+               - issi,is25lp016d
+               - micron,mt25qu02g
+diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+index af9a8d4..ad9059f 100644
+--- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
++++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
+@@ -182,6 +182,8 @@ patternProperties:
+     description: AU Optronics Corporation
+   "^auvidea,.*":
+     description: Auvidea GmbH
++  "^avalanche,.*":
++    description: Avalanche Technology, Inc.
+   "^avago,.*":
+     description: Avago Technologies
+   "^avia,.*":
+-- 
+2.55.0
+
