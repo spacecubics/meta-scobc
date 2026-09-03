@@ -1,0 +1,178 @@
+From 85ca515e9fe680427f7d46bee80674c80aa821eb Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Wed, 2 Sep 2026 00:00:00 +0900
+Subject: [PATCH] mtd: spi-nor: Add Avalanche MRAM support
+
+Add support for the Avalanche AS3064204, AS3128208, AS301G208,
+AS302G208, AS304G208, and AS308G208 MRAM devices.
+
+The devices do not provide SFDP data and memory writes do not require an
+erase operation.  Describe their capacity and read capabilities in the
+flash info table, skip SFDP probing, and expose them as erase-free MTD
+devices.  Quad output reads do not require a Quad Enable bit.
+
+The Dual QSPI parts expose half of their total capacity through each
+QSPI interface, so the sizes below describe the capacity visible through
+one chip select.
+
+The 1-Gbit and larger devices always use four-byte addresses. Their
+dedicated four-byte read opcodes follow the standard mappings, while
+page program continues to use opcode 02h with a four-byte address.
+Convert only the read opcode so the core does not issue unsupported
+address-mode entry commands or substitute the page-program opcode.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi-nor/Makefile    |  1 +
+ drivers/mtd/spi-nor/avalanche.c | 90 +++++++++++++++++++++++++++++++++
+ drivers/mtd/spi-nor/core.c      |  6 +++
+ drivers/mtd/spi-nor/core.h      |  1 +
+ 4 files changed, 98 insertions(+)
+ create mode 100644 drivers/mtd/spi-nor/avalanche.c
+
+diff --git a/drivers/mtd/spi-nor/Makefile b/drivers/mtd/spi-nor/Makefile
+index 5dd9c35..d367f2f 100644
+--- a/drivers/mtd/spi-nor/Makefile
++++ b/drivers/mtd/spi-nor/Makefile
+@@ -2,6 +2,7 @@
+ 
+ spi-nor-objs			:= core.o sfdp.o swp.o otp.o sysfs.o
+ spi-nor-objs			+= atmel.o
++spi-nor-objs			+= avalanche.o
+ spi-nor-objs			+= eon.o
+ spi-nor-objs			+= esmt.o
+ spi-nor-objs			+= everspin.o
+diff --git a/drivers/mtd/spi-nor/avalanche.c b/drivers/mtd/spi-nor/avalanche.c
+new file mode 100644
+index 0000000..8cd53a0
+--- /dev/null
++++ b/drivers/mtd/spi-nor/avalanche.c
+@@ -0,0 +1,90 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2026 Space Cubics Inc.
++ */
++
++#include <linux/mtd/spi-nor.h>
++
++#include "core.h"
++
++static const struct flash_info avalanche_nor_parts[] = {
++	/* AS3064204 */
++	{
++		.name = "as3064204",
++		.id = SNOR_ID(0xe6, 0x21, 0x21),
++		.size = SZ_8M,
++		.addr_nbytes = 3,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++	},
++	/* AS3128208 */
++	{
++		.name = "as3128208",
++		.id = SNOR_ID(0xe6, 0x21, 0x22),
++		.size = SZ_8M,
++		.addr_nbytes = 3,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++	},
++	/* AS301G208 */
++	{
++		.name = "as301g208",
++		.id = SNOR_ID(0xe6, 0x21, 0x28),
++		.size = SZ_64M,
++		.addr_nbytes = 4,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++		.fixup_flags = SPI_NOR_4B_OPCODES,
++	},
++	/* AS302G208 */
++	{
++		.name = "as302g208",
++		.id = SNOR_ID(0xe6, 0x21, 0x29),
++		.size = SZ_128M,
++		.addr_nbytes = 4,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++		.fixup_flags = SPI_NOR_4B_OPCODES,
++	},
++	/* AS304G208 */
++	{
++		.name = "as304g208",
++		.id = SNOR_ID(0xe6, 0x21, 0x2a),
++		.size = SZ_256M,
++		.addr_nbytes = 4,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++		.fixup_flags = SPI_NOR_4B_OPCODES,
++	},
++	/* AS308G208 */
++	{
++		.name = "as308g208",
++		.id = SNOR_ID(0xe6, 0x21, 0x2c),
++		.size = SZ_512M,
++		.addr_nbytes = 4,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++		.fixup_flags = SPI_NOR_4B_OPCODES,
++	}
++};
++
++static int avalanche_nor_late_init(struct spi_nor *nor)
++{
++	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
++
++	/* Quad output reads do not require a Quad Enable bit. */
++	params->quad_enable = NULL;
++
++	return 0;
++}
++
++static const struct spi_nor_fixups avalanche_nor_fixups = {
++	.late_init = avalanche_nor_late_init,
++};
++
++const struct spi_nor_manufacturer spi_nor_avalanche = {
++	.name = "avalanche",
++	.parts = avalanche_nor_parts,
++	.nparts = ARRAY_SIZE(avalanche_nor_parts),
++	.fixups = &avalanche_nor_fixups,
++};
+diff --git a/drivers/mtd/spi-nor/core.c b/drivers/mtd/spi-nor/core.c
+index 79c3ea2..4457e22 100644
+--- a/drivers/mtd/spi-nor/core.c
++++ b/drivers/mtd/spi-nor/core.c
+@@ -1318,6 +1318,11 @@ static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
+ {
+ 	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
+ 
++	if (nor->manufacturer == &spi_nor_avalanche) {
++		nor->read_opcode = spi_nor_convert_3to4_read(nor->read_opcode);
++		return;
++	}
++
+ 	nor->read_opcode = spi_nor_convert_3to4_read(nor->read_opcode);
+ 	nor->program_opcode = spi_nor_convert_3to4_program(nor->program_opcode);
+ 	nor->erase_opcode = spi_nor_convert_3to4_erase(nor->erase_opcode);
+@@ -2216,6 +2221,7 @@ int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor)
+ 
+ static const struct spi_nor_manufacturer *manufacturers[] = {
+ 	&spi_nor_atmel,
++	&spi_nor_avalanche,
+ 	&spi_nor_eon,
+ 	&spi_nor_esmt,
+ 	&spi_nor_everspin,
+diff --git a/drivers/mtd/spi-nor/core.h b/drivers/mtd/spi-nor/core.h
+index 7c779db..4794a5a 100644
+--- a/drivers/mtd/spi-nor/core.h
++++ b/drivers/mtd/spi-nor/core.h
+@@ -617,6 +617,7 @@ struct sfdp {
+ 
+ /* Manufacturer drivers. */
+ extern const struct spi_nor_manufacturer spi_nor_atmel;
++extern const struct spi_nor_manufacturer spi_nor_avalanche;
+ extern const struct spi_nor_manufacturer spi_nor_eon;
+ extern const struct spi_nor_manufacturer spi_nor_esmt;
+ extern const struct spi_nor_manufacturer spi_nor_everspin;
+-- 
+2.55.0

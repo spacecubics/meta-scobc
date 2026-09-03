@@ -9,6 +9,8 @@ SRC_URI += " \
     file://0001-spi-zynqmp-gqspi-Fix-independent-chip-select-handli.patch \
     file://0001-dt-bindings-mtd-Add-CY15V108QSN-F-RAM.patch \
     file://0002-mtd-spi-nor-spansion-Add-CY15V108QSN-support.patch \
+    file://0001-dt-bindings-mtd-Add-Avalanche-MRAM-compatibles.patch \
+    file://0002-mtd-spi-nor-Add-Avalanche-MRAM-support.patch \
     file://0001-rtc-zynqmp-Do-not-use-DT-calibration-value-as-RTC-fr.patch \
     file://0002-rtc-zynqmp-Always-program-Max_Tick-and-preserve-frac.patch \
     "
