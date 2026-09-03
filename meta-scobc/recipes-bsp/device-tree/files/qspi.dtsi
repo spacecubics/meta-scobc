@@ -4,6 +4,11 @@
 	/delete-property/ is-stacked;
 	/delete-property/ is-dual;
 
+	/delete-property/ xlnx,connection-mode;
+	/delete-property/ xlnx,qspi-mode;
+	xlnx,connection-mode = <0>;
+	xlnx,qspi-mode = <0>;
+
 	boot_memory: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
