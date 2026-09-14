@@ -1,0 +1,91 @@
+From 85aa73303dd877a8fa7d2975835f2175b78e360e Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Wed, 16 Sep 2026 20:03:57 +0900
+Subject: [PATCH] mtd: spi-nor: Add EM064LXQ MRAM support
+
+Add the Everspin EM064LXQ RDID and geometry. The device can overwrite
+either bit value without an erase operation and supports quad output
+reads without a Quad Enable bit.
+
+Skip SFDP probing, expose the device as erase-free memory, and suppress
+the generic Spansion-style Quad Enable operation. Configure the
+reset-default 16 dummy cycles required for quad reads.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi/Kconfig        |  8 ++++++++
+ drivers/mtd/spi/spi-nor-core.c | 18 ++++++++++++++++++
+ drivers/mtd/spi/spi-nor-ids.c  |  4 ++++
+ 3 files changed, 30 insertions(+)
+
+diff --git a/drivers/mtd/spi/Kconfig b/drivers/mtd/spi/Kconfig
+index 50a9f347b8b..d58a64fc08c 100644
+--- a/drivers/mtd/spi/Kconfig
++++ b/drivers/mtd/spi/Kconfig
+@@ -251,6 +251,14 @@ config SPI_FLASH_AVALANCHE
+ 	help
+ 	  Add support for Avalanche Dual QSPI MRAM chips (AS30xG208).
+ 
++config SPI_FLASH_EVERSPIN
++	bool "Everspin xSPI MRAM support"
++	help
++	  Enable recognition of Everspin EMxxxLX MRAM devices through their
++	  JEDEC IDs and expose them as erase-free SPI NOR memory.
++	  No erase command is required before writing new data.
++	  The supported series is the 64-Mbit EM064LXQ.
++
+ endif
+ 
+ config SPI_FLASH_USE_4K_SECTORS
+diff --git a/drivers/mtd/spi/spi-nor-core.c b/drivers/mtd/spi/spi-nor-core.c
+index 655ca5062e4..b39024375fc 100644
+--- a/drivers/mtd/spi/spi-nor-core.c
++++ b/drivers/mtd/spi/spi-nor-core.c
+@@ -6262,12 +6262,30 @@ static struct spi_nor_fixups avalanche_fixups = {
+ };
+ #endif
+ 
++#ifdef CONFIG_SPI_FLASH_EVERSPIN
++static void em064lx_late_init(struct spi_nor *nor,
++			      struct spi_nor_flash_parameter *params)
++{
++	(void)nor;
++	params->quad_enable = NULL;
++	params->reads[SNOR_CMD_READ_1_1_4].num_wait_states = 16;
++}
++
++static struct spi_nor_fixups em064lx_fixups = {
++	.late_init = em064lx_late_init,
++};
++#endif
++
+ void spi_nor_set_fixups(struct spi_nor *nor)
+ {
+ #ifdef CONFIG_SPI_FLASH_AVALANCHE
+ 	if (JEDEC_MFR(nor->info) == SNOR_MFR_AVALANCHE)
+ 		nor->fixups = &avalanche_fixups;
+ #endif
++#ifdef CONFIG_SPI_FLASH_EVERSPIN
++	if (!strcmp(nor->info->name, "em064lxq"))
++		nor->fixups = &em064lx_fixups;
++#endif
+ 
+ #ifdef CONFIG_SPI_FLASH_SPANSION
+ 	if (JEDEC_MFR(nor->info) == SNOR_MFR_CYPRESS) {
+diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
+index 8ca4889f1ed..74e39944123 100644
+--- a/drivers/mtd/spi/spi-nor-ids.c
++++ b/drivers/mtd/spi/spi-nor-ids.c
+@@ -91,6 +91,10 @@ const struct flash_info spi_nor_ids[] = {
+ 	{ INFO("as308g208", 0xe6212c, 0, 64 * 1024, 8192,
+ 		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ | SPI_NOR_4B_OPCODES) },
+ #endif
++#ifdef CONFIG_SPI_FLASH_EVERSPIN	/* EVERSPIN */
++	{ INFO("em064lxq", 0x6bbb17, 0, 64 * 1024, 128,
++		SPI_NOR_NO_ERASE | SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ) },
++#endif
+ #ifdef CONFIG_SPI_FLASH_EON		/* EON */
+ 	/* EON -- en25xxx */
+ 	{ INFO("en25q80b",   0x1c3014, 0, 64 * 1024,   16, SECT_4K) },
+-- 
+2.55.0
