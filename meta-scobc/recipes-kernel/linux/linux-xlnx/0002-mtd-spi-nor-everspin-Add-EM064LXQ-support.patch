@@ -1,0 +1,68 @@
+From c267f2a523fe8d20192956d7ba15434fed7e89d2 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Mon, 14 Sep 2026 11:43:09 +0900
+Subject: [PATCH 2/2] mtd: spi-nor: everspin: Add EM064LXQ support
+
+Add the RDID and geometry for the 64-Mbit Everspin EM064LXQ MRAM
+series.
+
+The device does not require erase operations or a Quad Enable bit. It
+supports quad-output reads as well as 1S-4S-4S quad-I/O reads and
+writes. Skip SFDP probing, expose it as erase-free memory, and add the
+1S-4S-4S commands using the reset-default 16 read dummy cycles.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi-nor/everspin.c | 35 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+
+diff --git a/drivers/mtd/spi-nor/everspin.c b/drivers/mtd/spi-nor/everspin.c
+index ce7907499c15..f00985ed20b5 100644
+--- a/drivers/mtd/spi-nor/everspin.c
++++ b/drivers/mtd/spi-nor/everspin.c
+@@ -8,8 +8,43 @@
+ 
+ #include "core.h"
+ 
++static int em064lx_nor_late_init(struct spi_nor *nor)
++{
++	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
++
++	/* Quad transfers do not require a Quad Enable bit. */
++	params->quad_enable = NULL;
++
++	/* Fast reads use 16 dummy cycles after reset. */
++	params->reads[SNOR_CMD_READ_1_1_4].num_wait_states = 16;
++	params->hwcaps.mask |= SNOR_HWCAPS_READ_1_4_4;
++	spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_4_4],
++				  0, 16, SPINOR_OP_READ_1_4_4,
++				  SNOR_PROTO_1_4_4);
++
++	params->hwcaps.mask |= SNOR_HWCAPS_PP_1_4_4;
++	spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP_1_4_4],
++				SPINOR_OP_PP_1_4_4, SNOR_PROTO_1_4_4);
++
++	return 0;
++}
++
++static const struct spi_nor_fixups em064lx_nor_fixups = {
++	.late_init = em064lx_nor_late_init,
++};
++
+ static const struct flash_info everspin_nor_parts[] = {
++	/* EM064LXQ */
+ 	{
++		.name = "em064lxq",
++		.id = SNOR_ID(0x6b, 0xbb, 0x17),
++		.size = SZ_8M,
++		.sector_size = SZ_8M,
++		.addr_nbytes = 3,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++		.fixups = &em064lx_nor_fixups,
++	}, {
+ 		.name = "mr25h128",
+ 		.size = SZ_16K,
+ 		.sector_size = SZ_16K,
+-- 
+2.55.0
