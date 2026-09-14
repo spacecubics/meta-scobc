@@ -24,7 +24,7 @@
 	hirel_memory: flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "avalanche,as3064204", "jedec,spi-nor";
+		compatible = "everspin,em064lxq", "jedec,spi-nor";
 		reg = <1>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;
