@@ -1,0 +1,29 @@
+From 225de09703dd5655b72af24c1cee561a8ce36dad Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Mon, 14 Sep 2026 11:42:43 +0900
+Subject: [PATCH 1/2] dt-bindings: mtd: Add EM064LXQ compatible
+
+The Everspin EM064LXQ series implements SPI NOR commands and reports a
+JEDEC RDID value.
+
+Document its specific compatible with jedec,spi-nor as a fallback.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml b/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
+index c94d88d..7953b4a 100644
+--- a/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
++++ b/Documentation/devicetree/bindings/mtd/jedec,spi-nor.yaml
+@@ -40,6 +40,7 @@ properties:
+               - avalanche,as308g208
+               - avalanche,as3128208
+               - cypress,cy15v108qsn
++              - everspin,em064lxq
+               - issi,is25lp016d
+               - micron,mt25qu02g
+               - mxicy,mx25r1635f
+-- 
+2.55.0
