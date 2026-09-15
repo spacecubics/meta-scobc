@@ -5,3 +5,7 @@
 &serial1 {
 	status = "disabled";
 };
+
+&spi1 {
+	status = "disabled";
+};
