@@ -14,6 +14,6 @@ EXTRA_DT_INCLUDE_FILES:append:linux = " \
 "
 
 DT_INCLUDE:append:linux = "${@ \
-    ' ${STAGING_KERNEL_DIR}/include ${RECIPE_SYSROOT}${datadir}/sdt/${MACHINE}/include' \
+    ' ${RECIPE_SYSROOT}${datadir}/sdt/${MACHINE}/include' \
     if bb.utils.to_boolean(d.getVar('ENABLE_OPENAMP'), False) else '' \
 }"
