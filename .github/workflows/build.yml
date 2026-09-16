@@ -18,6 +18,9 @@ jobs:
           - name: scobc-v1
             kas_file: kas/scobc-v1.yml
             image_recipe: sc-image-minimal sc-image-dev
+          - name: scobc-v1-reva
+            kas_file: kas/scobc-v1-reva.yml
+            image_recipe: sc-image-minimal sc-image-dev
           - name: scobc-v1-dualboot
             kas_file: kas/scobc-v1-dualboot.yml
             image_recipe: sc-image-dualboot sc-image-bundle
