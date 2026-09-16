@@ -31,7 +31,7 @@ $ kas build <kas configuration file>
 Example:
 
 ```bash
-$ kas build kas/scobc-v1-sdt.yml
+$ kas build kas/scobc-v1.yml
 ```
 
 The resulting images will be available under:
@@ -42,11 +42,14 @@ build/tmp/deploy/images/<machine>/
 
 ### Supported Machines
 
-| Machine                          | Machine configuration file                       | kas configuration file                      |
-| -------------------------------- | -------------------------------------------------| ------------------------------------------- |
-| SC-OBC Module V1 Space Grade     | [`versal-scobc-v1-sdt-full`][m-space]            | [`kas/scobc-v1-sdt.yml`][kas-space]         |
-| SC-OBC Module V1 Developer Grade | [`versal-scobc-v1-ve2302e-sdt-full`][m-dev-2302] | [`kas/scobc-v1-devgrade.yml`][kas-dev-2302] |
-| SC-OBC Module V1 VE2002 Variant  | [`versal-scobc-v1-ve2002e-sdt-full`][m-dev-2002] | [`kas/scobc-v1-devgrade-ve2002.yml`][kas-dev-2002] |
+| Machine | Board revision | Machine configuration file | kas configuration file |
+| --- | --- | --- | --- |
+| SC-OBC Module V1 Space Grade | Rev.B and later | [`versal-scobc-v1-ve2302i-revb-sdt-full`][m-space-revb] | [`kas/scobc-v1.yml`][kas-space-revb] |
+| SC-OBC Module V1 Space Grade | Rev.A | [`versal-scobc-v1-ve2302i-reva-sdt-full`][m-space-reva] | [`kas/scobc-v1-reva.yml`][kas-space-reva] |
+| SC-OBC Module V1 Developer Grade | Rev.B and later | [`versal-scobc-v1-ve2302e-revb-sdt-full`][m-dev-2302-revb] | [`kas/scobc-v1-devgrade.yml`][kas-dev-2302-revb] |
+| SC-OBC Module V1 Developer Grade | Rev.A | [`versal-scobc-v1-ve2302e-reva-sdt-full`][m-dev-2302-reva] | [`kas/scobc-v1-devgrade-reva.yml`][kas-dev-2302-reva] |
+| SC-OBC Module V1 VE2002 Variant | Rev.B and later | [`versal-scobc-v1-ve2002e-revb-sdt-full`][m-dev-2002-revb] | [`kas/scobc-v1-devgrade-ve2002.yml`][kas-dev-2002-revb] |
+| SC-OBC Module V1 VE2002 Variant | Rev.A | [`versal-scobc-v1-ve2002e-reva-sdt-full`][m-dev-2002-reva] | — |
 
 > [!NOTE]
 > SC-OBC Module V1 VE2002 Variant is not
@@ -67,14 +70,19 @@ available even if you delete and recreate the build directory.
 ```console
 $ export DL_DIR=/opt/yocto/downloads
 $ export SSTATE_DIR=/opt/yocto/sstate-cache
-$ kas build kas/scobc-v1-sdt.yml
+$ kas build kas/scobc-v1.yml
 ```
 
 [tag-v2026.06]: https://github.com/spacecubics/meta-scobc/commits/v2026.06
 [git-lfs]: https://git-lfs.com/
-[m-space]: meta-scobc/conf/machine/versal-scobc-v1-ve2302i-sdt-full.conf
-[m-dev-2302]: meta-scobc/conf/machine/versal-scobc-v1-ve2302e-sdt-full.conf
-[m-dev-2002]: meta-scobc/conf/machine/versal-scobc-v1-ve2002e-sdt-full.conf
-[kas-space]: kas/scobc-v1-sdt.yml
-[kas-dev-2302]: kas/scobc-v1-devgrade.yml
-[kas-dev-2002]: kas/scobc-v1-devgrade-ve2002.yml
+[m-space-revb]: meta-scobc/conf/machine/versal-scobc-v1-ve2302i-revb-sdt-full.conf
+[m-space-reva]: meta-scobc/conf/machine/versal-scobc-v1-ve2302i-reva-sdt-full.conf
+[m-dev-2302-revb]: meta-scobc/conf/machine/versal-scobc-v1-ve2302e-revb-sdt-full.conf
+[m-dev-2302-reva]: meta-scobc/conf/machine/versal-scobc-v1-ve2302e-reva-sdt-full.conf
+[m-dev-2002-revb]: meta-scobc/conf/machine/versal-scobc-v1-ve2002e-revb-sdt-full.conf
+[m-dev-2002-reva]: meta-scobc/conf/machine/versal-scobc-v1-ve2002e-reva-sdt-full.conf
+[kas-space-revb]: kas/scobc-v1.yml
+[kas-space-reva]: kas/scobc-v1-reva.yml
+[kas-dev-2302-revb]: kas/scobc-v1-devgrade.yml
+[kas-dev-2302-reva]: kas/scobc-v1-devgrade-reva.yml
+[kas-dev-2002-revb]: kas/scobc-v1-devgrade-ve2002.yml
