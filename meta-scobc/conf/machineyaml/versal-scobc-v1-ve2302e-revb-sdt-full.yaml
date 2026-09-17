@@ -1,0 +1,19 @@
+args:
+  - --hw-description https://downloads.spacecubics.com/products/scobc-v1/releases/v2026.08/sdt/versal-scobc-v1-ve2302e.tar.gz
+  - --machine-name versal-scobc-v1-ve2302e-revb-sdt-full
+  - --require-machine scobc-v1-generic
+  - -c meta-scobc/conf
+  - -g full
+
+machine:
+  pre:
+    require:
+      comment: "Load the SC-OBC Module V1 Rev.B configuration"
+      op: 'conf/machine/include/scobc-v1-revb.inc'
+  post:
+    require:
+      comment: "Load the SC-OBC configuration for developer-grade devices"
+      op: 'conf/machine/include/scobc-devgrade.inc'
+    include:
+      comment: "Load the dualboot U-Boot configuration when provided by meta-scobc-dualboot"
+      op: 'conf/machine/include/scobc-v1-u-boot.conf'
