@@ -9,9 +9,7 @@ S = "${WORKDIR}"
 RDEPENDS:${PN} += "plnx-initramfs-framework-base"
 
 RAMROOT_SIZE ?= "2G"
-RAMROOT_SIZE:versal-scobc-v1-ve2002e-sdt-full = "2G"
-RAMROOT_SIZE:versal-scobc-v1-ve2302e-sdt-full = "2G"
-RAMROOT_SIZE:versal-scobc-v1-ve2302i-sdt-full = "2G"
+RAMROOT_SIZE:scobc-v1-generic = "2G"
 
 do_install() {
     install -d ${D}/init.d
