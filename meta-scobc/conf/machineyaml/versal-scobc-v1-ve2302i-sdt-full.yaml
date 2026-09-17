@@ -10,4 +10,4 @@ machine:
   post:
     include:
       comment: "Load the dualboot U-Boot configuration when provided by meta-scobc-dualboot"
-      op: 'conf/machine/include/${MACHINE}/uboot-config.conf'
+      op: 'conf/machine/include/scobc-v1-u-boot.conf'

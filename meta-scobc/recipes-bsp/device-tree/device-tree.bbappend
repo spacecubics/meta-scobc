@@ -1,8 +1,8 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-EXTRA_DT_INCLUDE_FILES:append:microblaze-pmc = " qspi.dtsi"
+EXTRA_DT_INCLUDE_FILES:append:microblaze-pmc:scobc-v1-generic = " qspi.dtsi"
 
-EXTRA_DT_INCLUDE_FILES:append:linux = " \
+EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-generic = " \
     bootargs.dtsi \
     usb.dtsi \
     ethernet.dtsi \
@@ -11,7 +11,7 @@ EXTRA_DT_INCLUDE_FILES:append:linux = " \
     rpu-peripherals.dtsi \
 "
 
-EXTRA_DT_INCLUDE_FILES:append:linux = " \
+EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-generic = " \
     ${@' openamp.dtsi' if bb.utils.to_boolean(d.getVar('ENABLE_OPENAMP'), False) else ''} \
 "
 
