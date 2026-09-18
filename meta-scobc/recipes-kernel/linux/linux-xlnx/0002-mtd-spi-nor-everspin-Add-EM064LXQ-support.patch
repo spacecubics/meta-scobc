@@ -1,0 +1,60 @@
+From 8696414374f8f77ca06e5c8612ff7f9012e311e6 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Mon, 14 Sep 2026 11:43:09 +0900
+Subject: [PATCH 2/2] mtd: spi-nor: everspin: Add EM064LXQ support
+
+Add the RDID and geometry for the 64-Mbit Everspin EM064LXQ MRAM
+series.
+
+The device does not require erase operations and supports quad output
+reads without a Quad Enable bit. Skip SFDP probing, expose it as
+erase-free memory, suppress the default Quad Enable operation, and use
+the device's reset-default 16 dummy cycles for fast reads.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi-nor/everspin.c | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
+
+diff --git a/drivers/mtd/spi-nor/everspin.c b/drivers/mtd/spi-nor/everspin.c
+index ce79074..109a707 100644
+--- a/drivers/mtd/spi-nor/everspin.c
++++ b/drivers/mtd/spi-nor/everspin.c
+@@ -8,8 +8,35 @@
+ 
+ #include "core.h"
+ 
++static int em064lx_nor_late_init(struct spi_nor *nor)
++{
++	struct spi_nor_flash_parameter *params = spi_nor_get_params(nor, 0);
++
++	/* Quad output reads do not require a Quad Enable bit. */
++	params->quad_enable = NULL;
++
++	/* Fast reads use 16 dummy cycles after reset. */
++	params->reads[SNOR_CMD_READ_1_1_4].num_wait_states = 16;
++
++	return 0;
++}
++
++static const struct spi_nor_fixups em064lx_nor_fixups = {
++	.late_init = em064lx_nor_late_init,
++};
++
+ static const struct flash_info everspin_nor_parts[] = {
++	/* EM064LXQ */
+ 	{
++		.name = "em064lxq",
++		.id = SNOR_ID(0x6b, 0xbb, 0x17),
++		.size = SZ_8M,
++		.sector_size = SZ_8M,
++		.addr_nbytes = 3,
++		.flags = SPI_NOR_NO_ERASE,
++		.no_sfdp_flags = SPI_NOR_SKIP_SFDP | SPI_NOR_QUAD_READ,
++		.fixups = &em064lx_nor_fixups,
++	}, {
+ 		.name = "mr25h128",
+ 		.size = SZ_16K,
+ 		.sector_size = SZ_16K,
+-- 
+2.55.0
