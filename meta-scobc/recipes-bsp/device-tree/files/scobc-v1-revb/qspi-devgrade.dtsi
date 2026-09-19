@@ -1,0 +1,34 @@
+&qspi {
+	status = "okay";
+	num-cs = <2>;
+
+	/* CIPS uses Dual Stacked, but CS0 and CS1 are independent memories. */
+	/delete-property/ is-stacked;
+	/delete-property/ is-dual;
+
+	/* Keep PLM fallback reads within the CS0 boot memory. */
+	/delete-property/ xlnx,connection-mode;
+	/delete-property/ xlnx,qspi-mode;
+	xlnx,connection-mode = <0>;
+	xlnx,qspi-mode = <0>;
+
+	boot_memory: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "avalanche,as301g208", "jedec,spi-nor";
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <40000000>;
+	};
+
+	hirel_memory: flash@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "everspin,em064lxq", "jedec,spi-nor";
+		reg = <1>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <40000000>;
+	};
+};
