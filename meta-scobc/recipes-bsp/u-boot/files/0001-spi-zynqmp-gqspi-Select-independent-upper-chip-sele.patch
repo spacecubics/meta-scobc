@@ -1,0 +1,37 @@
+From 53a352f6c7d07d9b78e21c810b2ab3a49dd6e865 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Sat, 19 Sep 2026 14:40:54 +0900
+Subject: [PATCH] spi: zynqmp_gqspi: Fix chip select for independent flashes
+
+The GQSPI driver only selects CS1 when SPI NOR marks an operation as
+accessing the upper device in a stacked-memory configuration. When that
+flag is not set, the driver always selects CS0.
+
+Independent flash devices do not use the stacked-memory flag, so a
+device with reg = <1> is incorrectly accessed through CS0.
+
+Use the physical chip select as the fallback when the stacked-memory
+flag is not set. This preserves stacked-memory handling while allowing
+independent devices on CS1 to be selected.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/spi/zynqmp_gqspi.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/spi/zynqmp_gqspi.c b/drivers/spi/zynqmp_gqspi.c
+index 4251bf28cd3..713bffda6df 100644
+--- a/drivers/spi/zynqmp_gqspi.c
++++ b/drivers/spi/zynqmp_gqspi.c
+@@ -860,7 +860,7 @@ static int zynqmp_qspi_exec_op(struct spi_slave *slave,
+ 	if (slave->flags & SPI_XFER_U_PAGE)
+ 		priv->u_page = 1;
+ 	else
+-		priv->u_page = 0;
++		priv->u_page = spi_chip_select(slave->dev);
+ 
+ 	if ((slave->flags & GQSPI_SELECT_LOWER_CS) &&
+ 	    (slave->flags & GQSPI_SELECT_UPPER_CS))
+-- 
+2.55.0
+
