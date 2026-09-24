@@ -1,0 +1,28 @@
+From 34a78d715efbdd55b05db91cd809ae99ff92df21 Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 2 Jul 2026 17:14:47 +0900
+Subject: [PATCH 1/2] sw_services: xilloader: Add a 4 Gbit flash size
+ definition
+
+Add a 4 Gbit flash size definition to support such devices.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ lib/sw_services/xilloader/src/common/common/xloader.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/lib/sw_services/xilloader/src/common/common/xloader.h b/lib/sw_services/xilloader/src/common/common/xloader.h
+index 073c6f5..baaa846 100644
+--- a/lib/sw_services/xilloader/src/common/common/xloader.h
++++ b/lib/sw_services/xilloader/src/common/common/xloader.h
+@@ -239,6 +239,7 @@ extern "C" {
+ #define XLOADER_FLASH_SIZE_512M         (0x4000000U)
+ #define XLOADER_FLASH_SIZE_1G           (0x8000000U)
+ #define XLOADER_FLASH_SIZE_2G           (0x10000000U)
++#define XLOADER_FLASH_SIZE_4G           (0x20000000U)
+ #endif
+ /** @} */
+ 
+-- 
+2.54.0
+
