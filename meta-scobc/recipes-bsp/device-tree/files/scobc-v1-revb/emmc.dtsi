@@ -1,0 +1,16 @@
+/ {
+	emmc_vcc: regulator-emmc-vcc {
+		compatible = "regulator-fixed";
+		regulator-name = "emmc-vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 51 0>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
+&sdhci1 {
+	vmmc-supply = <&emmc_vcc>;
+};

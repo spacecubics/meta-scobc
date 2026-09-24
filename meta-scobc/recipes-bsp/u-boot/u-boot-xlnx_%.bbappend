@@ -13,3 +13,5 @@ SRC_URI:append = " \
 UBOOT_EXTRA_CFGS += " \
     scobc-v1.cfg \
 "
+
+UBOOT_EXTRA_CFGS:append:scobc-v1-revb = " scobc-v1-revb.cfg"
