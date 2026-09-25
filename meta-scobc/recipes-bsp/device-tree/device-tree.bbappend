@@ -21,6 +21,10 @@ EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-generic = " \
     rpu-peripherals.dtsi \
 "
 
+# Control the eMMC power supply through PMC_MIO51 on Rev.B boards.
+# U-Boot also consumes this Linux-domain device tree through EXT_DTB.
+EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-revb = " emmc.dtsi"
+
 # Add the OpenAMP description only when OpenAMP is enabled.
 EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-generic = " \
     ${@' openamp.dtsi' if bb.utils.to_boolean(d.getVar('ENABLE_OPENAMP'), False) else ''} \
