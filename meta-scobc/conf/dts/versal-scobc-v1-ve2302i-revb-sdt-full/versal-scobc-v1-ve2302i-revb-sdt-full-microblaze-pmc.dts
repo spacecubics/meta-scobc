@@ -1933,7 +1933,7 @@
                 compatible = "simple-bus";
                 #address-cells = <0x2>;
                 #size-cells = <0x2>;
-                firmware-name = "sc_obc_v1_versal_1d6401d6.pdi";
+                firmware-name = "sc_obc_v1_versal_3acae8bf.pdi";
         };
 
         chosen {
