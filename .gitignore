@@ -2,6 +2,9 @@
 sources
 build
 
+## nix .gitignore
+result
+
 ## RAUC .gitignore
 openssl-ca
 

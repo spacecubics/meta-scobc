@@ -9,6 +9,26 @@
 
 ## Setup
 
+### Nix (x86_64 Linux)
+
+The Nix flake provides `kas`, Python, and the host build tools in an FHS environment.
+
+```bash
+$ nix develop
+```
+
+To build directly:
+
+```bash
+$ nix run . -- -c 'kas build kas/scobc-v1.yml'
+```
+
+Use a fresh shell and a separate build directory when switching from another host environment.
+
+### Python environment
+
+Ubuntu 24.04 is required.
+
 We use [`uv`](https://github.com/astral-sh/uv) to manage the Python environment for `kas` and related tooling.
 
 ```bash
