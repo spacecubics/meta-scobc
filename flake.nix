@@ -142,6 +142,9 @@
           export LANG=en_US.UTF-8
           export LC_ALL=en_US.UTF-8
           export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
+          # Prevent kas from passing Nix's temporary directory to BitBake as
+          # its build directory.
+          unset TMPDIR
         '';
         runScript = "bash";
       };
