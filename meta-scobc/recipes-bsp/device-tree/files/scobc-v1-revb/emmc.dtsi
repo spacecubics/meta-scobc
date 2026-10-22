@@ -7,7 +7,8 @@
 		gpio = <&gpio1 51 0>;
 		enable-active-high;
 		regulator-boot-on;
-		regulator-always-on;
+		startup-delay-us = <100000>;
+		off-on-delay-us = <500000>;
 	};
 };
 
