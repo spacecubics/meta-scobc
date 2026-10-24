@@ -16,6 +16,7 @@ EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-generic = " \
     bootargs.dtsi \
     usb.dtsi \
     ethernet.dtsi \
+    mmc.dtsi \
     ${SCOBC_V1_QSPI_DTSI} \
     reset.dtsi \
     rpu-peripherals.dtsi \
