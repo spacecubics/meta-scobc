@@ -1,0 +1,116 @@
+From 6d7c84d6be56b4af60cbd0ee88ca74d12a4c92bd Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Tue, 27 Oct 2026 12:44:07 +0900
+Subject: [PATCH] pmdomain: xilinx/zynqmp: Restore access on reattach
+
+Releasing the last device's firmware node does not immediately update
+the genpd state. The work that marks the domain OFF is queued after
+detach. A rapid reattach can therefore still see ON and skip the
+provider's power-on callback. Requesting the node with no capabilities
+then leaves it inaccessible even though attach reports success.
+
+Request ACCESS for the first device attaching to an ON domain. Keep
+caps=0 for OFF domains so attach-only users do not power them up; the
+normal power-on callback will request ACCESS when it is needed.
+
+Serialize the node requests and releases with domain->mlock, the same
+mutex that genpd uses for this provider's power callbacks. This keeps
+the status snapshot and requested flag consistent with concurrent
+power-off work. Preserve the existing ACK modes and error handling.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/pmdomain/xilinx/zynqmp-pm-domains.c | 31 ++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/pmdomain/xilinx/zynqmp-pm-domains.c b/drivers/pmdomain/xilinx/zynqmp-pm-domains.c
+index 0b5831e5ba1b..af5a82a34544 100644
+--- a/drivers/pmdomain/xilinx/zynqmp-pm-domains.c
++++ b/drivers/pmdomain/xilinx/zynqmp-pm-domains.c
+@@ -12,6 +12,7 @@
+ #include <linux/err.h>
+ #include <linux/list.h>
+ #include <linux/module.h>
++#include <linux/mutex.h>
+ #include <linux/of_platform.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm_domain.h>
+@@ -154,23 +155,31 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
+ {
+ 	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
+ 	struct device_link *link;
+-	int ret;
++	u32 capabilities = 0;
++	int ret = 0;
+ 
+ 	link = device_link_add(dev, &domain->dev, DL_FLAG_SYNC_STATE_ONLY);
+ 	if (!link)
+ 		dev_dbg(&domain->dev, "failed to create device link for %s\n",
+ 			dev_name(dev));
+ 
++	/* Xilinx domains use the mutex-based genpd lock. */
++	mutex_lock(&domain->mlock);
++
+ 	/* If this is not the first device to attach there is nothing to do */
+ 	if (domain->device_count)
+-		return 0;
++		goto unlock;
+ 
+-	ret = zynqmp_pm_request_node(pd->node_id, 0, 0,
++	/* genpd skips power_on() if detach work has not marked it OFF yet. */
++	if (domain->status == GENPD_STATE_ON)
++		capabilities = ZYNQMP_PM_CAPABILITY_ACCESS;
++
++	ret = zynqmp_pm_request_node(pd->node_id, capabilities, 0,
+ 				     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+ 	if (ret) {
+ 		dev_err(&domain->dev, "%s request failed for node %d: %d\n",
+ 			domain->name, pd->node_id, ret);
+-		return ret;
++		goto unlock;
+ 	}
+ 
+ 	pd->requested = true;
+@@ -178,7 +187,10 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
+ 	dev_dbg(&domain->dev, "%s requested PM node id %d\n",
+ 		dev_name(dev), pd->node_id);
+ 
+-	return 0;
++unlock:
++	mutex_unlock(&domain->mlock);
++
++	return ret;
+ }
+ 
+ /**
+@@ -192,21 +204,26 @@ static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
+ 	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
+ 	int ret;
+ 
++	mutex_lock(&domain->mlock);
++
+ 	/* If this is not the last device to detach there is nothing to do */
+ 	if (domain->device_count)
+-		return;
++		goto unlock;
+ 
+ 	ret = zynqmp_pm_release_node(pd->node_id);
+ 	if (ret) {
+ 		dev_err(&domain->dev, "failed to release PM node id %d: %d\n",
+ 			pd->node_id, ret);
+-		return;
++		goto unlock;
+ 	}
+ 
+ 	pd->requested = false;
+ 
+ 	dev_dbg(&domain->dev, "%s released PM node id %d\n",
+ 		dev_name(dev), pd->node_id);
++
++unlock:
++	mutex_unlock(&domain->mlock);
+ }
+ 
+ static struct generic_pm_domain *zynqmp_gpd_xlate
+
+base-commit: 31626ef92ff11f9d3dee01926720572666fcc65a
