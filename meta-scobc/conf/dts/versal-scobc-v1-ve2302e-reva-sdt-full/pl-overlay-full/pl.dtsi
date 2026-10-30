@@ -1,7 +1,7 @@
 /dts-v1/;
 /plugin/;
 &fpga {
-	firmware-name = "sc_obc_v1_versal_ve2302e_3acae8bf.pdi";
+	firmware-name = "sc_obc_v1_versal_ve2302e_e51e712a.pdi";
 };
 
 &amba {
