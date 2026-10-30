@@ -1,30 +1,11 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-# Select the QSPI memory population by board revision and grade.
-#   Rev.A Space/Developer -> scobc-v1-reva/qspi.dtsi
-#   Rev.B Space           -> scobc-v1-revb/qspi.dtsi
-#   Rev.B Developer       -> scobc-v1-revb/qspi-devgrade.dtsi
-SCOBC_V1_QSPI_DTSI:scobc-v1-reva = "qspi.dtsi"
-SCOBC_V1_QSPI_DTSI:scobc-v1-revb = "qspi.dtsi"
-SCOBC_V1_QSPI_DTSI:scobc-v1-revb:scobc-v1-devgrade = "qspi-devgrade.dtsi"
-
-# Apply the QSPI description to the PLM device tree.
-EXTRA_DT_INCLUDE_FILES:append:microblaze-pmc:scobc-v1-generic = " ${SCOBC_V1_QSPI_DTSI}"
-
-# Apply the SC-OBC Module V1 peripheral descriptions to Linux.
+# Board hardware descriptions are supplied by the generated SDT.
+# Keep Linux boot policy and RPU peripheral assignments here.
 EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-generic = " \
     bootargs.dtsi \
-    usb.dtsi \
-    ethernet.dtsi \
-    mmc.dtsi \
-    ${SCOBC_V1_QSPI_DTSI} \
-    reset.dtsi \
     rpu-peripherals.dtsi \
 "
-
-# Control the eMMC power supply through PMC_MIO51 on Rev.B boards.
-# U-Boot also consumes this Linux-domain device tree through EXT_DTB.
-EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-revb = " emmc.dtsi"
 
 # Add the OpenAMP description only when OpenAMP is enabled.
 EXTRA_DT_INCLUDE_FILES:append:linux:scobc-v1-generic = " \
