@@ -1,0 +1,916 @@
+From f7fb8a55e61b1ce40929b78945975c9c6a50472b Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 12 Nov 2026 18:45:04 +0900
+Subject: [PATCH] mtd: spi-nor: Validate compatible and add an sf probe
+ override
+
+Validate a named device against its RDID instead of selecting a different
+part. Preserve auto-detection for generic or unspecified compatibles.
+
+Make validation and the recovery override opt-in through
+SPI_FLASH_VALIDATE_COMPAT. Leave automatic RDID detection unchanged when
+the option is disabled.
+
+Add sf probe --trust-compat for recovery using a known named part without
+initial RDID validation. Keep the request per device and clear it after
+each command, including failed probes. Use the named manufacturer for the
+boot-time reset and the already selected part during removal so recovery
+does not depend on a preliminary RDID read. Propagate removal-time
+reset failures.
+
+Preserve the original probe error when an explicit speed or mode is given,
+just as when device-tree defaults are used.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ arch/sandbox/include/asm/test.h |  14 ++
+ cmd/sf.c                        |  54 +++--
+ drivers/mtd/spi/Kconfig         |  15 ++
+ drivers/mtd/spi/sandbox.c       |  19 ++
+ drivers/mtd/spi/sf-uclass.c     |  36 +++-
+ drivers/mtd/spi/sf_probe.c      |   9 +-
+ drivers/mtd/spi/spi-nor-core.c  | 115 +++++++++--
+ include/spi_flash.h             |  23 +++
+ test/dm/sf.c                    | 339 ++++++++++++++++++++++++++++++++
+ 9 files changed, 589 insertions(+), 35 deletions(-)
+
+diff --git a/arch/sandbox/include/asm/test.h b/arch/sandbox/include/asm/test.h
+index 0e8d19ce2325..3012a1d35d7c 100644
+--- a/arch/sandbox/include/asm/test.h
++++ b/arch/sandbox/include/asm/test.h
+@@ -154,6 +154,20 @@ int sandbox_pwm_get_config(struct udevice *dev, uint channel, uint *period_nsp,
+  */
+ void sandbox_sf_set_block_protect(struct udevice *dev, int bp_mask);
+ 
++/**
++ * sandbox_sf_set_read_id_error() - Inject an RDID transfer failure
++ * @dev: Emulated SPI flash
++ * @error: Negative errno, or zero to restore normal responses
++ */
++void sandbox_sf_set_read_id_error(struct udevice *dev, int error);
++
++/**
++ * sandbox_sf_get_read_id_count() - Count RDID commands sent to an emulator
++ * @dev: Emulated SPI flash
++ * Return: Number of RDID commands, including failed transfers
++ */
++unsigned int sandbox_sf_get_read_id_count(struct udevice *dev);
++
+ /**
+  * sandbox_get_codec_params() - Read back codec parameters
+  *
+diff --git a/cmd/sf.c b/cmd/sf.c
+index e93c082692e9..9a9755ba2b27 100644
+--- a/cmd/sf.c
++++ b/cmd/sf.c
+@@ -94,12 +94,24 @@ static int do_spi_flash_probe(int argc, char *const argv[])
+ 	char *endp;
+ 	bool use_dt = true;
+ #if CONFIG_IS_ENABLED(DM_SPI_FLASH)
++	bool trust_compat = false;
+ 	struct udevice *new, *bus_dev;
++	struct spi_flash_plat *probe_plat = NULL;
+ 	int ret;
+ #else
+ 	struct spi_flash *new;
+ #endif
+ 
++#if CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT)
++	if (argc > 1 && !strcmp(argv[1], "--trust-compat")) {
++		trust_compat = true;
++		argc--;
++		argv++;
++	}
++#endif
++	if (argc > 4)
++		return CMD_RET_USAGE;
++
+ 	if (argc >= 2) {
+ 		cs = simple_strtoul(argv[1], &endp, 0);
+ 		if (*argv[1] == 0 || (*endp != 0 && *endp != ':'))
+@@ -129,19 +141,34 @@ static int do_spi_flash_probe(int argc, char *const argv[])
+ 	}
+ 
+ #if CONFIG_IS_ENABLED(DM_SPI_FLASH)
++	flash = NULL;
+ 	/* Remove the old device, otherwise probe will just be a nop */
+ 	ret = spi_find_bus_and_cs(bus, cs, &bus_dev, &new);
++	if (trust_compat &&
++	    (ret || device_get_uclass_id(new) != UCLASS_SPI_FLASH ||
++	     new->driver->probe != spi_flash_std_probe)) {
++		puts("--trust-compat requires a bound standard SPI NOR device\n");
++		return CMD_RET_FAILURE;
++	}
+ 	if (!ret) {
+-		device_remove(new, DM_REMOVE_NORMAL);
++		ret = device_remove(new, DM_REMOVE_NORMAL);
++		if (ret)
++			return CMD_RET_FAILURE;
+ 	}
+-	flash = NULL;
+-	if (use_dt) {
++	if (trust_compat) {
++		probe_plat = dev_get_uclass_plat(new);
++		probe_plat->trust_compat = true;
++	}
++	if (use_dt)
+ 		ret = spi_flash_probe_bus_cs(bus, cs, &new);
+-		if (!ret)
+-			flash = dev_get_uclass_priv(new);
+-	} else {
+-		flash = spi_flash_probe(bus, cs, speed, mode);
+-	}
++	else
++		ret = spi_flash_probe_bus_cs_speed_mode(bus, cs, speed, mode, &new);
++	if (!ret)
++		flash = dev_get_uclass_priv(new);
++
++	/* The override belongs to this invocation, even if probing failed. */
++	if (probe_plat)
++		probe_plat->trust_compat = false;
+ 
+ 	if (!flash) {
+ 		printf("Failed to initialize SPI flash at %u:%u (error %d)\n",
+@@ -650,8 +677,13 @@ static int do_spi_flash(struct cmd_tbl *cmdtp, int flag, int argc,
+ }
+ 
+ U_BOOT_LONGHELP(sf,
+-	"probe [[bus:]cs] [hz] [mode]	- init flash device on given SPI bus\n"
+-	"				  and chip select\n"
++#if CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT)
++	"probe [--trust-compat] [[bus:]cs] [hz] [mode]\n"
++	"\t- init flash; --trust-compat skips initial RDID validation\n"
++#else
++	"probe [[bus:]cs] [hz] [mode]\t- init flash device on given SPI bus\n"
++	"\t\t\t\t  and chip select\n"
++#endif
+ 	"sf read addr offset|partition len	- read `len' bytes starting at\n"
+ 	"				          `offset' or from start of mtd\n"
+ 	"					  `partition'to memory at `addr'\n"
+@@ -676,6 +708,6 @@ U_BOOT_LONGHELP(sf,
+ 	);
+ 
+ U_BOOT_CMD(
+-	sf,	5,	1,	do_spi_flash,
++	sf,	5 + CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT),	1,	do_spi_flash,
+ 	"SPI flash sub-system", sf_help_text
+ );
+diff --git a/drivers/mtd/spi/Kconfig b/drivers/mtd/spi/Kconfig
+index d58a64fc08c7..afe469fa6151 100644
+--- a/drivers/mtd/spi/Kconfig
++++ b/drivers/mtd/spi/Kconfig
+@@ -89,6 +89,21 @@ config BOOTDEV_SPI_FLASH
+ 
+ 	  If unsure, say N
+ 
++config SPI_FLASH_VALIDATE_COMPAT
++	bool "Validate SPI NOR device-tree compatible against JEDEC ID"
++	depends on DM_SPI_FLASH && OF_CONTROL
++	help
++	  Require the initial RDID response to match a known, specific
++	  device-tree compatible. Reject unknown named parts and ID mismatches
++	  instead of selecting another part. Missing or generic jedec,spi-nor
++	  compatibles retain automatic detection.
++
++	  This also enables sf probe --trust-compat to use the named part
++	  without initial RDID validation when recovering from an unreliable
++	  ID response. The override applies only to that probe invocation.
++
++	  If unsure, say N.
++
+ config SPI_FLASH_SFDP_SUPPORT
+ 	bool "SFDP table parsing support for SPI NOR flashes"
+ 	depends on !SPI_FLASH_BAR
+diff --git a/drivers/mtd/spi/sandbox.c b/drivers/mtd/spi/sandbox.c
+index e5ebc3479fb1..c353ea6fe6f9 100644
+--- a/drivers/mtd/spi/sandbox.c
++++ b/drivers/mtd/spi/sandbox.c
+@@ -93,6 +93,8 @@ struct sandbox_spi_flash {
+ 	const struct flash_info *data;
+ 	/* The file on disk to serv up data from */
+ 	int fd;
++	int read_id_error;
++	unsigned int read_id_count;
+ };
+ 
+ struct sandbox_spi_flash_plat_data {
+@@ -110,6 +112,20 @@ void sandbox_sf_set_block_protect(struct udevice *dev, int bp_mask)
+ 	sbsf->status |= bp_mask << STAT_BP_SHIFT;
+ }
+ 
++void sandbox_sf_set_read_id_error(struct udevice *dev, int error)
++{
++	struct sandbox_spi_flash *sbsf = dev_get_priv(dev);
++
++	sbsf->read_id_error = error;
++}
++
++unsigned int sandbox_sf_get_read_id_count(struct udevice *dev)
++{
++	struct sandbox_spi_flash *sbsf = dev_get_priv(dev);
++
++	return sbsf->read_id_count;
++}
++
+ /**
+  * This is a very strange probe function. If it has platform data (which may
+  * have come from the device tree) then this function gets the filename and
+@@ -242,6 +258,9 @@ static int sandbox_sf_process_cmd(struct sandbox_spi_flash *sbsf, const u8 *rx,
+ 	sbsf->cmd = rx[0];
+ 	switch (sbsf->cmd) {
+ 	case SPINOR_OP_RDID:
++		sbsf->read_id_count++;
++		if (sbsf->read_id_error)
++			return sbsf->read_id_error;
+ 		sbsf->state = SF_ID;
+ 		sbsf->cmd = SF_ID;
+ 		break;
+diff --git a/drivers/mtd/spi/sf-uclass.c b/drivers/mtd/spi/sf-uclass.c
+index 102a92368267..6c65e2f560d2 100644
+--- a/drivers/mtd/spi/sf-uclass.c
++++ b/drivers/mtd/spi/sf-uclass.c
+@@ -43,16 +43,14 @@ int spl_flash_get_sw_write_prot(struct udevice *dev)
+ 	return log_ret(ops->get_sw_write_prot(dev));
+ }
+ 
+-/*
+- * TODO(sjg@chromium.org): This is an old-style function. We should remove
+- * it when all SPI flash drivers use dm
+- */
+-struct spi_flash *spi_flash_probe(unsigned int busnum, unsigned int cs,
+-				  unsigned int max_hz, unsigned int spi_mode)
++int spi_flash_probe_bus_cs_speed_mode(unsigned int busnum, unsigned int cs,
++				      unsigned int max_hz, unsigned int spi_mode,
++				      struct udevice **devp)
+ {
+ 	struct spi_slave *slave;
+ 	struct udevice *bus;
+ 	char *str;
++	int ret;
+ 
+ #if defined(CONFIG_XPL_BUILD) && CONFIG_IS_ENABLED(USE_TINY_PRINTF)
+ 	str = "spi_flash";
+@@ -63,11 +61,28 @@ struct spi_flash *spi_flash_probe(unsigned int busnum, unsigned int cs,
+ 	str = strdup(name);
+ #endif
+ 
+-	if (_spi_get_bus_and_cs(busnum, cs, max_hz, spi_mode,
+-				"jedec_spi_nor", str, &bus, &slave))
++	ret = _spi_get_bus_and_cs(busnum, cs, max_hz, spi_mode,
++				 "jedec_spi_nor", str, &bus, &slave);
++	if (ret)
++		return ret;
++
++	*devp = slave->dev;
++	return 0;
++}
++
++/*
++ * TODO(sjg@chromium.org): This is an old-style function. We should remove
++ * it when all SPI flash drivers use dm
++ */
++struct spi_flash *spi_flash_probe(unsigned int busnum, unsigned int cs,
++				  unsigned int max_hz, unsigned int spi_mode)
++{
++	struct udevice *dev;
++
++	if (spi_flash_probe_bus_cs_speed_mode(busnum, cs, max_hz, spi_mode, &dev))
+ 		return NULL;
+ 
+-	return dev_get_uclass_priv(slave->dev);
++	return dev_get_uclass_priv(dev);
+ }
+ 
+ int spi_flash_probe_bus_cs(unsigned int busnum, unsigned int cs,
+@@ -103,4 +118,7 @@ UCLASS_DRIVER(spi_flash) = {
+ 	.name		= "spi_flash",
+ 	.post_bind	= spi_flash_post_bind,
+ 	.per_device_auto	= sizeof(struct spi_nor),
++#if CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT)
++	.per_device_plat_auto = sizeof(struct spi_flash_plat),
++#endif
+ };
+diff --git a/drivers/mtd/spi/sf_probe.c b/drivers/mtd/spi/sf_probe.c
+index 7100b64bf22a..e6c4b2527fce 100644
+--- a/drivers/mtd/spi/sf_probe.c
++++ b/drivers/mtd/spi/sf_probe.c
+@@ -224,15 +224,16 @@ static int spi_flash_std_remove(struct udevice *dev)
+ 	struct spi_flash *flash = dev_get_uclass_priv(dev);
+ 	int ret;
+ 
++	/* Keep the device usable for a retry if the reset fails. */
++	ret = spi_nor_remove(flash);
++	if (ret)
++		return ret;
++
+ 	if (CONFIG_IS_ENABLED(SPI_DIRMAP)) {
+ 		spi_mem_dirmap_destroy(flash->dirmap.wdesc);
+ 		spi_mem_dirmap_destroy(flash->dirmap.rdesc);
+ 	}
+ 
+-	ret = spi_nor_remove(flash);
+-	if (ret)
+-		return ret;
+-
+ 	if (CONFIG_IS_ENABLED(SPI_FLASH_MTD))
+ 		spi_flash_mtd_unregister(flash);
+ 
+diff --git a/drivers/mtd/spi/spi-nor-core.c b/drivers/mtd/spi/spi-nor-core.c
+index 5f90f2b1d618..08e10e67d9f9 100644
+--- a/drivers/mtd/spi/spi-nor-core.c
++++ b/drivers/mtd/spi/spi-nor-core.c
+@@ -10,6 +10,7 @@
+  */
+ 
+ #include <display_options.h>
++#include <hexdump.h>
+ #include <log.h>
+ #include <watchdog.h>
+ #include <asm-generic/gpio.h>
+@@ -31,6 +32,7 @@
+ #include <mtd/cfi_flash.h>
+ #include <spi-mem.h>
+ #include <spi.h>
++#include <spi_flash.h>
+ 
+ #include "sf_internal.h"
+ 
+@@ -1594,7 +1596,51 @@ static int stm_is_unlocked(struct spi_nor *nor, loff_t ofs, uint64_t len)
+ #endif
+ #endif
+ 
+-static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
++static const struct flash_info *spi_nor_match_compat(struct spi_nor *nor)
++{
++#if CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT)
++	const struct flash_info *info;
++	const char *compat, *name;
++
++	if (!dev_has_ofnode(nor->dev) ||
++	    !dev_read_bool(nor->dev, "compatible"))
++		return NULL;
++
++	compat = dev_read_string(nor->dev, "compatible");
++	if (!compat || !*compat) {
++		dev_err(nor->dev, "invalid SPI NOR compatible\n");
++		return ERR_PTR(-EINVAL);
++	}
++	if (!strcmp(compat, "jedec,spi-nor"))
++		return NULL;
++
++	name = strchr(compat, ',');
++	name = name ? name + 1 : compat;
++	for (info = spi_nor_ids; info->name; info++) {
++		if (!strcmp(info->name, name))
++			return info;
++	}
++
++	dev_err(nor->dev, "unknown SPI NOR compatible %s\n", compat);
++	return ERR_PTR(-ENODEV);
++#else
++	return NULL;
++#endif
++}
++
++static bool spi_nor_trust_compat(struct spi_nor *nor)
++{
++#if CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT)
++	struct spi_flash_plat *plat = dev_get_uclass_plat(nor->dev);
++
++	return plat->trust_compat;
++#else
++	return false;
++#endif
++}
++
++static const struct flash_info *spi_nor_read_id(struct spi_nor *nor,
++					      const struct flash_info *expected)
+ {
+ 	int			tmp;
+ 	u8			id[SPI_NOR_MAX_ID_LEN];
+@@ -1609,6 +1655,23 @@ static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
+ 		return ERR_PTR(tmp);
+ 	}
+ 
++	if (expected) {
++		if (memcmp(expected->id, id, expected->id_len)) {
++			char actual_id[2 * SPI_NOR_MAX_ID_LEN + 1];
++			char expected_id[2 * SPI_NOR_MAX_ID_LEN + 1];
++
++			*bin2hex(actual_id, id, expected->id_len) = '\0';
++			*bin2hex(expected_id, expected->id,
++				 expected->id_len) = '\0';
++			dev_err(nor->dev,
++				"JEDEC ID mismatch for %s: got %s, expected %s\n",
++				expected->name, actual_id, expected_id);
++			return ERR_PTR(-ENODEV);
++		}
++		memcpy(nor->spi->device_id, id, SPI_NOR_MAX_ID_LEN);
++		return expected;
++	}
++
+ 	info = spi_nor_ids;
+ 	for (; info->name; info++) {
+ 		if (info->id_len) {
+@@ -6176,7 +6239,8 @@ static bool spansion_flash_lock_info(struct spi_nor *nor)
+  *
+  * Return: 0 for success, -errno for failure.
+  */
+-static int spi_nor_soft_reset(struct spi_nor *nor)
++static int spi_nor_soft_reset(struct spi_nor *nor,
++			      const struct flash_info *expected)
+ {
+ 	struct spi_mem_op op;
+ 	int ret;
+@@ -6191,10 +6255,15 @@ static int spi_nor_soft_reset(struct spi_nor *nor)
+ #endif /* SPI_NOR_BOOT_SOFT_RESET_EXT_INVERT */
+ 	}
+ 
+-	ret = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
+-	if (ret < 0) {
+-		dev_dbg(nor->dev, "error %d reading JEDEC ID\n", ret);
+-		return ret;
++	if (expected) {
++		/* A named part supplies the reset protocol without an RDID read. */
++		id[0] = JEDEC_MFR(expected);
++	} else {
++		ret = nor->read_reg(nor, SPINOR_OP_RDID, id, SPI_NOR_MAX_ID_LEN);
++		if (ret < 0) {
++			dev_dbg(nor->dev, "error %d reading JEDEC ID\n", ret);
++			return ret;
++		}
+ 	}
+ 
+ 	if (id[0] ==  SNOR_MFR_MACRONIX) {
+@@ -6239,9 +6308,10 @@ out:
+ int spi_nor_remove(struct spi_nor *nor)
+ {
+ #ifdef CONFIG_SPI_FLASH_SOFT_RESET
++	/* The active part already identifies the reset command extension. */
+ 	if (nor->info->flags & SPI_NOR_OCTAL_DTR_READ &&
+ 	    nor->flags & SNOR_F_SOFT_RESET)
+-		return spi_nor_soft_reset(nor);
++		return spi_nor_soft_reset(nor, nor->info);
+ #endif
+ 
+ 	return 0;
+@@ -6392,11 +6462,25 @@ int spi_nor_scan(struct spi_nor *nor)
+ {
+ 	struct spi_nor_flash_parameter params;
+ 	const struct flash_info *info = NULL;
++	const struct flash_info *expected;
+ 	struct mtd_info *mtd = &nor->mtd;
+ 	struct spi_slave *spi = nor->spi;
+ 	int ret;
+ 	int cfi_mtd_nb = 0;
+ 	bool shift = 0;
++	bool trust_compat = spi_nor_trust_compat(nor);
++
++	expected = spi_nor_match_compat(nor);
++	if (IS_ERR(expected))
++		return PTR_ERR(expected);
++	if (trust_compat && !expected) {
++		dev_err(nor->dev, "--trust-compat requires a known specific compatible\n");
++		return -EINVAL;
++	}
++	if (expected && !expected->id_len && !trust_compat) {
++		dev_err(nor->dev, "cannot validate JEDEC ID for %s\n", expected->name);
++		return -ENODEV;
++	}
+ 
+ #ifdef CONFIG_FLASH_CFI_MTD
+ 	cfi_mtd_nb = CFI_FLASH_BANKS;
+@@ -6443,12 +6527,21 @@ int spi_nor_scan(struct spi_nor *nor)
+ 	 * and only one of them needs a soft reset, failure to reset is not
+ 	 * made fatal, and we still try to read ID if possible.
+ 	 */
+-	spi_nor_soft_reset(nor);
++	spi_nor_soft_reset(nor, expected);
+ #endif /* CONFIG_SPI_FLASH_SOFT_RESET_ON_BOOT */
+ 
+-	info = spi_nor_read_id(nor);
+-	if (IS_ERR_OR_NULL(info))
+-		return -ENOENT;
++	if (trust_compat) {
++		printf("SF: WARNING: trusting compatible for %s; JEDEC ID NOT verified\n",
++		       expected->name);
++		memset(nor->spi->device_id, 0, SPI_NOR_MAX_ID_LEN);
++		memcpy(nor->spi->device_id, expected->id, expected->id_len);
++		info = expected;
++	} else {
++		info = spi_nor_read_id(nor, expected);
++		if (IS_ERR(info))
++			return CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT) ?
++				PTR_ERR(info) : -ENOENT;
++	}
+ 	nor->info = info;
+ 
+ 	spi_nor_set_fixups(nor);
+diff --git a/include/spi_flash.h b/include/spi_flash.h
+index 9086e6601c13..6c843c1a9e9e 100644
+--- a/include/spi_flash.h
++++ b/include/spi_flash.h
+@@ -101,9 +101,32 @@ int spl_flash_get_sw_write_prot(struct udevice *dev);
+  */
+ int spi_flash_std_probe(struct udevice *dev);
+ 
++/**
++ * struct spi_flash_plat - Per-device SPI flash probe options
++ * @trust_compat: Skip initial RDID validation for a known compatible; the
++ * caller must clear this request after the probe, including on failure.
++ */
++struct spi_flash_plat {
++	bool trust_compat;
++};
++
+ int spi_flash_probe_bus_cs(unsigned int busnum, unsigned int cs,
+ 			   struct udevice **devp);
+ 
++/**
++ * spi_flash_probe_bus_cs_speed_mode() - Probe with an explicit speed and mode
++ * @busnum: SPI bus number
++ * @cs: Chip select number
++ * @max_hz: Maximum clock frequency in Hz
++ * @spi_mode: SPI mode flags
++ * @devp: Returns the probed flash device on success
++ *
++ * Return: 0 on success, or the original negative probe/setup error
++ */
++int spi_flash_probe_bus_cs_speed_mode(unsigned int busnum, unsigned int cs,
++				      unsigned int max_hz, unsigned int spi_mode,
++				      struct udevice **devp);
++
+ /* Compatibility function - this is the old U-Boot API */
+ struct spi_flash *spi_flash_probe(unsigned int bus, unsigned int cs,
+ 				  unsigned int max_hz, unsigned int spi_mode);
+diff --git a/test/dm/sf.c b/test/dm/sf.c
+index 3684d0217094..d4c4c8826789 100644
+--- a/test/dm/sf.c
++++ b/test/dm/sf.c
+@@ -4,18 +4,25 @@
+  */
+ 
+ #include <command.h>
++#include <console.h>
+ #include <dm.h>
+ #include <fdtdec.h>
+ #include <mapmem.h>
+ #include <os.h>
+ #include <spi.h>
++#include <spi-mem.h>
+ #include <spi_flash.h>
++#include <asm/global_data.h>
+ #include <asm/state.h>
+ #include <asm/test.h>
+ #include <dm/test.h>
++#include <dm/ofnode.h>
+ #include <dm/util.h>
+ #include <test/test.h>
+ #include <test/ut.h>
++#include "../../drivers/mtd/spi/sf_internal.h"
++
++DECLARE_GLOBAL_DATA_PTR;
+ 
+ /* Simple test of sandbox SPI flash */
+ static int dm_test_spi_flash(struct unit_test_state *uts)
+@@ -74,6 +81,338 @@ static int dm_test_spi_flash(struct unit_test_state *uts)
+ }
+ DM_TEST(dm_test_spi_flash, UTF_SCAN_PDATA | UTF_SCAN_FDT);
+ 
++#if CONFIG_IS_ENABLED(SPI_FLASH_VALIDATE_COMPAT)
++/* A force request must neither read RDID nor survive this command. */
++static int dm_test_spi_flash_trust_compat(struct unit_test_state *uts)
++{
++	static const char compat[] = "spansion,m25p16\0jedec,spi-nor";
++	struct udevice *dev, *emul;
++	struct spi_flash_plat *plat;
++	struct spi_flash *nor;
++	ofnode node;
++	unsigned int count;
++	int ret;
++#if CONFIG_IS_ENABLED(LOG)
++	int log_fmt;
++#endif
++	u8 byte;
++
++	ut_assertok(os_write_file("spi.bin", map_sysmem(0x20000, 0x200000),
++				  0x200000));
++	ut_assertok(console_record_reset_enable());
++	ut_assertok(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert_skip_to_line("SF: WARNING: trusting compatible for %s; JEDEC ID NOT verified",
++			       "m25p16");
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_FLASH, &dev));
++	/* A trusted legacy part needs no bus traffic during initialization. */
++	ut_assertok(spi_flash_read_dm(dev, 0, 1, &byte));
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_EMUL, &emul));
++	ut_asserteq(0, sandbox_sf_get_read_id_count(emul));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	node = dev_ofnode(dev);
++	plat = dev_get_uclass_plat(dev);
++	count = sandbox_sf_get_read_id_count(emul);
++
++	/* The emulator remains an m25p16 while DT expects an m25p32. */
++	ut_assertok(ofnode_write_string(node, "compatible", "spansion,m25p32"));
++	ut_assertok(console_record_reset_enable());
++#if CONFIG_IS_ENABLED(LOG)
++	log_fmt = gd->log_fmt;
++	gd->log_fmt = BIT(LOGF_MSG);
++#endif
++	ret = run_command("sf probe 0:0", 0);
++#if CONFIG_IS_ENABLED(LOG)
++	gd->log_fmt = log_fmt;
++#endif
++	ut_assert(ret);
++	ut_assert_skip_to_line("%s %s: JEDEC ID mismatch for m25p32: got 202015, expected 202016",
++			       dev->driver->name, dev->name);
++	ut_asserteq(count + 1, sandbox_sf_get_read_id_count(emul));
++	count++;
++	ut_assertok(console_record_reset_enable());
++	ut_assertok(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert_skip_to_line("SF: WARNING: trusting compatible for %s; JEDEC ID NOT verified",
++			       "m25p32");
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assert(!plat->trust_compat);
++	nor = dev_get_uclass_priv(dev);
++	ut_asserteq(0x400000, nor->mtd.size);
++	ut_assert(run_command("sf probe 0:0", 0));
++	ut_assert(!plat->trust_compat);
++	ut_assert(run_command("sf read 1000 0 1", 0));
++
++	/* A failed RDID can be bypassed even with explicit speed and mode. */
++	sandbox_sf_set_read_id_error(emul, -EIO);
++	count = sandbox_sf_get_read_id_count(emul);
++	ut_assertok(run_command("sf probe --trust-compat 0:0 1000000 0", 0));
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assert(!plat->trust_compat);
++	ut_assertok(console_record_reset_enable());
++	ut_assert(run_command("sf probe 0:0", 0));
++	ut_assert_skip_to_line("Failed to initialize SPI flash at 0:0 (error -5)");
++	ut_assert(!plat->trust_compat);
++	ut_assertok(console_record_reset_enable());
++	ut_assert(run_command("sf probe 0:0 1000000 0", 0));
++	ut_assert_skip_to_line("Failed to initialize SPI flash at 0:0 (error -5)");
++	ut_assert(!plat->trust_compat);
++	sandbox_sf_set_read_id_error(emul, 0);
++
++	/* Unknown and generic compatibles cannot be forced. */
++	count = sandbox_sf_get_read_id_count(emul);
++	ut_assertok(ofnode_write_string(node, "compatible", "vendor,unknown"));
++	ut_assert(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert(!plat->trust_compat);
++	ut_assert(run_command("sf probe 0:0", 0));
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assertok(ofnode_write_string(node, "compatible", "jedec,spi-nor"));
++	ut_assert(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert(!plat->trust_compat);
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	ut_asserteq(count + 1, sandbox_sf_get_read_id_count(emul));
++
++	/* A bad target must not leave the previously selected flash usable. */
++	ut_assert(run_command("sf probe --trust-compat 999:0", 0));
++	ut_assert(run_command("sf read 1000 0 1", 0));
++
++	ut_assertok(ofnode_write_prop(node, "compatible", compat, sizeof(compat),
++				     true));
++	sandbox_sf_unbind_emul(state_get_current(), 0, 0);
++
++	return 0;
++}
++DM_TEST(dm_test_spi_flash_trust_compat, UTF_SCAN_FDT | UTF_LIVE_TREE);
++
++#if CONFIG_IS_ENABLED(SPI_FLASH_SOFT_RESET)
++static unsigned int sf_reset_count;
++static int sf_reset_error;
++
++static bool sf_test_supports_op(struct spi_slave *slave,
++			       const struct spi_mem_op *op)
++{
++	if (op->cmd.dtr && (op->cmd.opcode & 0xff) == SPINOR_OP_SRSTEN)
++		return true;
++	if (op->cmd.dtr && (op->cmd.opcode & 0xff) == SPINOR_OP_SRST)
++		return true;
++
++	return spi_mem_default_supports_op(slave, op);
++}
++
++static int sf_test_exec_op(struct spi_slave *slave, const struct spi_mem_op *op)
++{
++	/* spi-mem uses ENOTSUPP to fall back to ordinary sandbox transfers. */
++	if (!op->cmd.dtr)
++		return -ENOTSUPP;
++
++	sf_reset_count++;
++	return sf_reset_error;
++}
++
++/* Removing an active Octal part must not read RDID before a forced probe. */
++static int dm_test_spi_flash_trust_compat_remove(struct unit_test_state *uts)
++{
++	static const struct spi_controller_mem_ops mem_ops = {
++		.supports_op = sf_test_supports_op,
++		.exec_op = sf_test_exec_op,
++	};
++	struct udevice *dev, *emul, *bus;
++	const struct driver *orig_driver;
++	const struct flash_info *orig_info;
++	struct spi_flash_plat *plat;
++	struct flash_info octal_info;
++	struct spi_flash *nor;
++	struct dm_spi_ops ops;
++	struct driver driver;
++	unsigned int count, orig_flags;
++	int ret;
++
++	ut_assertok(os_write_file("spi.bin", map_sysmem(0x20000, 0x200000),
++				  0x200000));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_FLASH, &dev));
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_EMUL, &emul));
++	plat = dev_get_uclass_plat(dev);
++	bus = dev->parent;
++	orig_driver = bus->driver;
++	driver = *orig_driver;
++	ops = *spi_get_ops(bus);
++	ops.mem_ops = &mem_ops;
++	driver.ops = &ops;
++	sandbox_sf_set_read_id_error(emul, -EIO);
++	count = sandbox_sf_get_read_id_count(emul);
++
++	/* Emulate the reset protocol of an already active Octal DTR part. */
++	nor = dev_get_uclass_priv(dev);
++	orig_info = nor->info;
++	orig_flags = nor->flags;
++	octal_info = *orig_info;
++	octal_info.flags |= SPI_NOR_OCTAL_DTR_READ;
++	nor->info = &octal_info;
++	nor->flags |= SNOR_F_SOFT_RESET;
++	sf_reset_count = 0;
++	sf_reset_error = 0;
++	bus->driver = &driver;
++	ret = run_command("sf probe --trust-compat 0:0", 0);
++	bus->driver = orig_driver;
++	if (ret && device_active(dev)) {
++		nor = dev_get_uclass_priv(dev);
++		nor->info = orig_info;
++		nor->flags = orig_flags;
++	}
++	ut_assertok(ret);
++	ut_asserteq(2, sf_reset_count);
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assert(!plat->trust_compat);
++
++	/* A failed reset must still abort removal and the subsequent probe. */
++	nor = dev_get_uclass_priv(dev);
++	orig_info = nor->info;
++	orig_flags = nor->flags;
++	nor->info = &octal_info;
++	nor->flags |= SNOR_F_SOFT_RESET;
++	sf_reset_count = 0;
++	sf_reset_error = -ETIMEDOUT;
++	bus->driver = &driver;
++	ret = run_command("sf probe --trust-compat 0:0", 0);
++	bus->driver = orig_driver;
++	if (ret && device_active(dev)) {
++		nor = dev_get_uclass_priv(dev);
++		nor->info = orig_info;
++		nor->flags = orig_flags;
++	}
++	ut_assert(ret);
++	ut_asserteq(1, sf_reset_count);
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assert(!plat->trust_compat);
++	ut_assert(run_command("sf read 1000 0 1", 0));
++
++	/* Failed removal must leave direct mappings valid for a later retry. */
++	nor = dev_get_uclass_priv(dev);
++	nor->info = &octal_info;
++	nor->flags |= SNOR_F_SOFT_RESET;
++	sf_reset_count = 0;
++	sf_reset_error = 0;
++	bus->driver = &driver;
++	ret = run_command("sf probe --trust-compat 0:0", 0);
++	bus->driver = orig_driver;
++	if (ret && device_active(dev)) {
++		nor = dev_get_uclass_priv(dev);
++		nor->info = orig_info;
++		nor->flags = orig_flags;
++	}
++	ut_assertok(ret);
++	ut_asserteq(2, sf_reset_count);
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assert(!plat->trust_compat);
++	sandbox_sf_set_read_id_error(emul, 0);
++	sandbox_sf_unbind_emul(state_get_current(), 0, 0);
++
++	return 0;
++}
++DM_TEST(dm_test_spi_flash_trust_compat_remove, UTF_SCAN_FDT | UTF_LIVE_TREE);
++#endif
++
++/* Invalid properties must not be treated like an absent compatible. */
++static int dm_test_spi_flash_invalid_compat(struct unit_test_state *uts)
++{
++	static const char compat[] = "spansion,m25p16\0jedec,spi-nor";
++	static const char malformed[] = "spansion,m25p32";
++	struct udevice *dev, *emul;
++	struct spi_flash_plat *plat;
++	ofnode node;
++	unsigned int count;
++
++	ut_assertok(os_write_file("spi.bin", map_sysmem(0x20000, 0x200000),
++				  0x200000));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_FLASH, &dev));
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_EMUL, &emul));
++	node = dev_ofnode(dev);
++	plat = dev_get_uclass_plat(dev);
++	count = sandbox_sf_get_read_id_count(emul);
++
++	/* A named part without a terminating NUL is not a valid string. */
++	ut_assertok(ofnode_write_prop(node, "compatible", malformed,
++				     sizeof(malformed) - 1, true));
++	ut_assert(run_command("sf probe 0:0", 0));
++	ut_assert(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert(!plat->trust_compat);
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assert(run_command("sf read 1000 0 1", 0));
++
++	/* Empty properties and empty strings are invalid too. */
++	ut_assertok(ofnode_write_prop(node, "compatible", NULL, 0, false));
++	ut_assert(run_command("sf probe 0:0", 0));
++	ut_assert(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert(!plat->trust_compat);
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++	ut_assertok(ofnode_write_string(node, "compatible", ""));
++	ut_assert(run_command("sf probe 0:0", 0));
++	ut_assert(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert(!plat->trust_compat);
++	ut_asserteq(count, sandbox_sf_get_read_id_count(emul));
++
++	/* Only a missing property retains automatic detection. */
++	ut_assertok(ofnode_delete_prop(node, "compatible"));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	ut_asserteq(count + 1, sandbox_sf_get_read_id_count(emul));
++	ut_assert(run_command("sf probe --trust-compat 0:0", 0));
++	ut_assert(!plat->trust_compat);
++	ut_asserteq(count + 1, sandbox_sf_get_read_id_count(emul));
++
++	ut_assertok(ofnode_write_prop(node, "compatible", compat, sizeof(compat),
++				     true));
++	sandbox_sf_unbind_emul(state_get_current(), 0, 0);
++
++	return 0;
++}
++DM_TEST(dm_test_spi_flash_invalid_compat, UTF_SCAN_FDT);
++#else
++/* With validation disabled, RDID alone selects the device as before. */
++static int dm_test_spi_flash_compat_autodetect(struct unit_test_state *uts)
++{
++	static const char compat[] = "spansion,m25p16\0jedec,spi-nor";
++	struct udevice *dev, *emul;
++	struct spi_flash *nor;
++	ofnode node;
++
++	ut_assertok(os_write_file("spi.bin", map_sysmem(0x20000, 0x200000),
++				  0x200000));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_FLASH, &dev));
++	ut_assertok(uclass_first_device_err(UCLASS_SPI_EMUL, &emul));
++	node = dev_ofnode(dev);
++
++	/* A mismatching or unknown compatible does not override RDID. */
++	ut_assertok(ofnode_write_string(node, "compatible", "spansion,m25p32"));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	nor = dev_get_uclass_priv(dev);
++	ut_asserteq(0x200000, nor->mtd.size);
++	ut_assertok(ofnode_write_string(node, "compatible", "vendor,unknown"));
++	ut_assertok(run_command("sf probe 0:0", 0));
++	nor = dev_get_uclass_priv(dev);
++	ut_asserteq(0x200000, nor->mtd.size);
++	ut_assert(run_command("sf probe --trust-compat 0:0", 0));
++
++	/* Keep the legacy error reported by an unsuccessful RDID probe. */
++	sandbox_sf_set_read_id_error(emul, -EIO);
++	ut_assertok(console_record_reset_enable());
++	ut_assert(run_command("sf probe 0:0", 0));
++	ut_assert_skip_to_line("Failed to initialize SPI flash at 0:0 (error -2)");
++	ut_assertok(console_record_reset_enable());
++	ut_assert(run_command("sf probe 0:0 1000000 0", 0));
++	ut_assert_skip_to_line("Failed to initialize SPI flash at 0:0 (error -2)");
++	sandbox_sf_set_read_id_error(emul, 0);
++
++	ut_assertok(ofnode_write_prop(node, "compatible", compat, sizeof(compat),
++				     true));
++	sandbox_sf_unbind_emul(state_get_current(), 0, 0);
++
++	return 0;
++}
++DM_TEST(dm_test_spi_flash_compat_autodetect, UTF_SCAN_FDT | UTF_LIVE_TREE);
++#endif
++
+ /* Functional test that sandbox SPI flash works correctly */
+ static int dm_test_spi_flash_func(struct unit_test_state *uts)
+ {
+-- 
+2.56.0
