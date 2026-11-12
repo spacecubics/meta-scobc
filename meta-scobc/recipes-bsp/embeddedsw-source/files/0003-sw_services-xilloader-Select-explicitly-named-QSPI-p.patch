@@ -1,0 +1,176 @@
+From f362ddd976611659350891373c34775019a935ce Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 3 Sep 2026 15:10:00 +0900
+Subject: [PATCH] sw_services: xilloader: Select explicitly named QSPI parts
+
+Radiation can corrupt an RDID response, so it must not determine the
+boot memory used by PLM on systems with a fixed hardware population.
+
+Export QSPI child compatible strings through xparameters and use the
+CS0 compatible to select a fixed part description.  Keep RDID probing
+for systems which specify only the generic jedec,spi-nor compatible or
+which do not provide a QSPI child compatible.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ .../drivers/qspipsu/data/qspipsu.yaml          |   6 ++
+ .../xilloader/src/common/server/xloader_qspi.c | 106 ++++++++++++++++++++-
+ 2 files changed, 111 insertions(+), 1 deletion(-)
+
+diff --git a/XilinxProcessorIPLib/drivers/qspipsu/data/qspipsu.yaml b/XilinxProcessorIPLib/drivers/qspipsu/data/qspipsu.yaml
+index b92af25..3410730 100644
+--- a/XilinxProcessorIPLib/drivers/qspipsu/data/qspipsu.yaml
++++ b/XilinxProcessorIPLib/drivers/qspipsu/data/qspipsu.yaml
+@@ -25,6 +25,12 @@ properties:
+     description: Present if dma operations are coherent
+     type: boolean
+ 
++xparam_children:
++  index: reg
++  prefix: CS
++  properties:
++    - compatible
++
+ config:
+     - XQspiPsu_Config
+ required:
+diff --git a/lib/sw_services/xilloader/src/common/server/xloader_qspi.c b/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
+index c39682a..dd38116 100644
+--- a/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
++++ b/lib/sw_services/xilloader/src/common/server/xloader_qspi.c
+@@ -76,18 +76,112 @@
+ #define XLOADER_DEFAULT_PRESCALR_VAL  XQSPIPSU_CLK_PRESCALE_8
+ #define XLOADER_INVALID_PRESCALAR_VAL 0xFFU
+ 
++#ifdef XPAR_XQSPIPSU_0_CS0_COMPATIBLE
++#define XLOADER_QSPI_COMPATIBLE_MAX_LEN 64U
++#endif
++
+ /************************** Function Prototypes ******************************/
+ static int FlashReadID(XQspiPsu *QspiPsuPtr);
++#ifdef XPAR_XQSPIPSU_0_CS0_COMPATIBLE
++static int XLoader_QspiInitFixedPart(const char *Compatible);
++static u32 XLoader_QspiCompatibleEqual(const char *First, const char *Second);
++#endif
+ 
+ /************************** Variable Definitions *****************************/
++#ifdef XPAR_XQSPIPSU_0_CS0_COMPATIBLE
++typedef struct {
++	const char *Compatible;
++	u32 Make;
++	u32 Size;
++} XLoader_QspiPart;
++#endif
++
+ static XQspiPsu QspiPsuInstance;
+ static u32 QspiFlashSize = 0U;
+ static u32 QspiFlashMake = 0U;
+ static u32 ReadCommand = 0U;
+ static u8 QspiMode;
+ static PdiSrc_t QspiBootMode;
+ static u8 QspiBusWidth;
+ 
++#ifdef XPAR_XQSPIPSU_0_CS0_COMPATIBLE
++static const XLoader_QspiPart QspiParts[] = {
++	{
++		.Compatible = "spansion,s25fs512s",
++		.Make = XLOADER_SPANSION_ID,
++		.Size = XLOADER_FLASH_SIZE_512M,
++	},
++	{
++		.Compatible = "avalanche,as301g208",
++		.Make = XLOADER_AVALANCHE_ID,
++		.Size = XLOADER_FLASH_SIZE_512M,
++	},
++};
++
++/*****************************************************************************/
++/**
++ * @brief Compare two bounded compatible strings.
++ *
++ * @param First is the first compatible string.
++ * @param Second is the second compatible string.
++ *
++ * @return 1 when both strings are equal, otherwise 0.
++ *
++ *****************************************************************************/
++static u32 XLoader_QspiCompatibleEqual(const char *First, const char *Second)
++{
++	u32 Index;
++	u32 Equal = 0U;
++
++	for (Index = 0U; Index < XLOADER_QSPI_COMPATIBLE_MAX_LEN; Index++) {
++		if (First[Index] != Second[Index]) {
++			break;
++		}
++		if (First[Index] == '\0') {
++			Equal = 1U;
++			break;
++		}
++	}
++
++	return Equal;
++}
++
++/*****************************************************************************/
++/**
++ * @brief Initialize a QSPI flash from an explicitly named part.
++ *
++ * @param Compatible is the first compatible of the CS0 child node.
++ *
++ * @return XST_SUCCESS on success, otherwise an XilLoader error code.
++ *
++ *****************************************************************************/
++static int XLoader_QspiInitFixedPart(const char *Compatible)
++{
++	int Status = XST_FAILURE;
++	u32 Index;
++
++	for (Index = 0U; Index < XPLMI_ARRAY_SIZE(QspiParts); Index++) {
++		if (XLoader_QspiCompatibleEqual(Compatible,
++				QspiParts[Index].Compatible) == 1U) {
++			QspiFlashMake = QspiParts[Index].Make;
++			QspiFlashSize = QspiParts[Index].Size;
++			XLoader_Printf(DEBUG_INFO, "Fixed QSPI part: %s\r\n",
++					Compatible);
++			Status = XST_SUCCESS;
++			break;
++		}
++	}
++
++	if (Status != XST_SUCCESS) {
++		Status = XPlmi_UpdateStatus(XLOADER_ERR_UNSUPPORTED_QSPI_FLASH_ID, 0);
++		XLoader_Printf(DEBUG_INFO, "Unsupported fixed QSPI part: %s\r\n",
++				Compatible);
++	}
++
++	return Status;
++}
++#endif
++
+ /*****************************************************************************/
+ /**
+  * @brief	This function reads serial FLASH ID connected to the SPI
+@@ -416,8 +510,18 @@ int XLoader_QspiInit(u32 DeviceFlags)
+ 		goto END;
+ 	}
+ 
+-	/** - Read Flash ID and extract Manufacture and Size information. */
+-	Status = FlashReadID(&QspiPsuInstance);
++	/** - Select a fixed CS0 part when its compatible is available. */
++#ifdef XPAR_XQSPIPSU_0_CS0_COMPATIBLE
++	if (XLoader_QspiCompatibleEqual(XPAR_XQSPIPSU_0_CS0_COMPATIBLE,
++			"jedec,spi-nor") == 1U) {
++		Status = FlashReadID(&QspiPsuInstance);
++	}
++	else {
++		Status = XLoader_QspiInitFixedPart(XPAR_XQSPIPSU_0_CS0_COMPATIBLE);
++	}
++#else
++	Status = FlashReadID(&QspiPsuInstance);
++#endif
+ 	if (Status != XST_SUCCESS) {
+ 		goto END;
+ 	}
+-- 
+2.54.0

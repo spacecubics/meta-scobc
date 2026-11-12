@@ -1,0 +1,83 @@
+From 9df0cbfd935954a70f88700df235759ff13c09df Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Thu, 3 Sep 2026 15:00:00 +0900
+Subject: [PATCH] assists: xparameters: Generate selected child properties
+
+Some controller drivers need build-time information about devices on
+their child bus without adding those values to the controller's config
+structure.  Add an xparam_children schema entry which generates macros
+indexed by a numeric child property such as reg.
+
+String properties are emitted as string literals, allowing a QSPI flash
+compatible to select a fixed part without probing it at runtime.
+
+Ignore unavailable child nodes and reject duplicate indices among
+available children so an inactive device cannot override the selected part.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ lopper/assists/baremetal_xparameters_xlnx.py | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+diff --git a/lopper/assists/baremetal_xparameters_xlnx.py b/lopper/assists/baremetal_xparameters_xlnx.py
+index 5a4223f..88b29cc 100644
+--- a/lopper/assists/baremetal_xparameters_xlnx.py
++++ b/lopper/assists/baremetal_xparameters_xlnx.py
+@@ -131,6 +131,7 @@ def xparameters_generate(tgt_node, sdt, options):
+                     driver_proplist.extend(schema.get('additionalProperties',{}))
+                 else:
+                     driver_proplist = schema.get('additionalProperties',{})
++            xparam_children = schema.get('xparam_children',{})
+             match_nodes = []
+             for node,compatible_list in node_dict.items():
+                 for comp in driver_compatlist:
+@@ -377,6 +378,47 @@ def xparameters_generate(tgt_node, sdt, options):
+                                 canondef_dict.update({prop:hex(prop_val[0])})
+                                 plat.buf(f'\n#define XPAR_{label_name}_{prop.upper()} {hex(prop_val[0])}')
+ 
++                if xparam_children:
++                    index_prop = xparam_children.get('index')
++                    index_prefix = xparam_children.get('prefix', '')
++                    child_props = xparam_children.get('properties', [])
++                    child_indices = {}
++                    for child in node.child_nodes.values():
++                        if child.propval('status') not in ([''], ['okay'], ['ok']):
++                            continue
++                        try:
++                            child_index = child[index_prop].value[0]
++                        except (KeyError, TypeError):
++                            continue
++
++                        if child_index in child_indices:
++                            _error(
++                                f'Duplicate {index_prop} value {child_index} '
++                                f'in {child.abs_path} and '
++                                f'{child_indices[child_index]}',
++                                also_exit=1)
++                        child_indices[child_index] = child.abs_path
++
++                        child_name = f'{index_prefix}{child_index}'
++                        for child_prop in child_props:
++                            try:
++                                child_value = child[child_prop].value[0]
++                            except KeyError:
++                                continue
++
++                            macro_prop = child_prop.replace('-', '_')
++                            macro_prop = macro_prop.replace('xlnx,', '')
++                            macro_name = f'{child_name}_{macro_prop}'
++                            if isinstance(child_value, str):
++                                macro_value = f'"{child_value}"'
++                            else:
++                                macro_value = hex(child_value)
++
++                            plat.buf(
++                                f'\n#define XPAR_{label_name}_'
++                                f'{macro_name.upper()} {macro_value}')
++                            canondef_dict.update({macro_name:macro_value})
++
+                 plat.buf(f'\n\n/* Canonical definitions for peripheral {label_name} */')
+                 for prop,val in sorted(canondef_dict.items(), key=lambda e: e[0][0], reverse=False):
+                     if prop == "FABRIC":
+-- 
+2.54.0
