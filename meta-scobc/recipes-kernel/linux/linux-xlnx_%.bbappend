@@ -13,6 +13,7 @@ SRC_URI += " \
     file://0002-mtd-spi-nor-Add-Avalanche-MRAM-support.patch \
     file://0001-dt-bindings-mtd-Add-EM064LXQ-compatible.patch \
     file://0002-mtd-spi-nor-everspin-Add-EM064LXQ-support.patch \
+    file://0001-mtd-spi-nor-Validate-compatible-against-JEDEC-ID.patch \
     file://0001-rtc-zynqmp-Do-not-use-DT-calibration-value-as-RTC-fr.patch \
     file://0002-rtc-zynqmp-Always-program-Max_Tick-and-preserve-frac.patch \
     file://0001-pmdomain-xilinx-zynqmp-Restore-access-on-reattach.patch \
