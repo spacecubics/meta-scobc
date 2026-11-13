@@ -1,0 +1,142 @@
+From aa5b6f79bd2262a420ec6c4d641163ede0b7d88e Mon Sep 17 00:00:00 2001
+From: Takumi Ando <takumi@spacecubics.com>
+Date: Fri, 13 Nov 2026 11:41:04 +0900
+Subject: [PATCH] mtd: spi-nor: Add optional compatible and RDID validation
+
+On systems with a fixed memory population, a corrupted RDID response must
+not select a different part or fall back to generic SFDP detection.
+
+Add MTD_SPI_NOR_VALIDATE_COMPAT, disabled by default, to check a named
+DT part against its raw JEDEC ID before flash initialization. Retry at
+most three reads to tolerate transient errors, then reject a persistent
+mismatch or return the final transfer error. Reject unknown named parts
+and parts without a verifiable ID. Keep legacy detection for missing or
+generic compatibles and when the option is disabled.
+
+Cache the verified ID and retain the named part and its manufacturer so
+aliases sharing the same JEDEC ID do not cause a false mismatch.
+
+Signed-off-by: Takumi Ando <takumi@spacecubics.com>
+---
+ drivers/mtd/spi-nor/Kconfig | 15 ++++++++
+ drivers/mtd/spi-nor/core.c  | 74 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)
+
+diff --git a/drivers/mtd/spi-nor/Kconfig b/drivers/mtd/spi-nor/Kconfig
+index 24cd25de2b8b..936349e72e11 100644
+--- a/drivers/mtd/spi-nor/Kconfig
++++ b/drivers/mtd/spi-nor/Kconfig
+@@ -10,6 +10,21 @@ menuconfig MTD_SPI_NOR
+ 
+ if MTD_SPI_NOR
+ 
++config MTD_SPI_NOR_VALIDATE_COMPAT
++	bool "Validate SPI NOR compatible against JEDEC ID"
++	depends on OF
++	help
++	  Require the initial RDID response to match a known, specific
++	  device-tree compatible before registering the device. Try at most
++	  three reads, with a short delay between attempts, to tolerate
++	  transient read failures or corrupted ID responses.
++
++	  Reject unknown named parts, parts without a JEDEC ID and persistent
++	  mismatches. Missing or generic jedec,spi-nor compatibles retain the
++	  existing detection behavior. There is no runtime override.
++
++	  If unsure, say N.
++
+ config MTD_SPI_NOR_USE_4K_SECTORS
+ 	bool "Use small 4096 B erase sectors"
+ 	default y
+diff --git a/drivers/mtd/spi-nor/core.c b/drivers/mtd/spi-nor/core.c
+index 4457e22518b7..4495ccbc9774 100644
+--- a/drivers/mtd/spi-nor/core.c
++++ b/drivers/mtd/spi-nor/core.c
+@@ -4095,11 +4095,85 @@ static const struct flash_info *spi_nor_match_name(struct spi_nor *nor,
+ 	return NULL;
+ }
+ 
++#define SPI_NOR_ID_READ_ATTEMPTS 3
++
++static const struct flash_info *spi_nor_validate_compat(struct spi_nor *nor)
++{
++	struct device_node *np = spi_nor_get_flash_node(nor);
++	const struct flash_info *info;
++	const char *compat, *name;
++	u8 *id = nor->bouncebuf;
++	unsigned int attempt;
++	int ret;
++
++	if (!np || !of_find_property(np, "compatible", NULL))
++		return NULL;
++
++	ret = of_property_read_string(np, "compatible", &compat);
++	if (ret) {
++		dev_err(nor->dev, "invalid SPI NOR compatible: %d\n", ret);
++		return ERR_PTR(ret);
++	}
++	if (!strcmp(compat, "jedec,spi-nor"))
++		return NULL;
++
++	name = strchr(compat, ',');
++	name = name ? name + 1 : compat;
++	info = spi_nor_match_name(nor, name);
++	if (!info) {
++		dev_err(nor->dev, "unknown SPI NOR compatible %s\n", compat);
++		return ERR_PTR(-ENODEV);
++	}
++	if (!info->id) {
++		dev_err(nor->dev, "cannot validate JEDEC ID for %s\n", info->name);
++		return ERR_PTR(-ENODEV);
++	}
++
++	for (attempt = 0; attempt < SPI_NOR_ID_READ_ATTEMPTS; attempt++) {
++		ret = spi_nor_read_id(nor, 0, 0, id, nor->reg_proto);
++		if (!ret && !memcmp(info->id->bytes, id, info->id->len))
++			break;
++		if (ret == -EPROBE_DEFER)
++			return ERR_PTR(ret);
++		if (attempt + 1 < SPI_NOR_ID_READ_ATTEMPTS)
++			usleep_range(1000, 2000);
++	}
++	if (attempt == SPI_NOR_ID_READ_ATTEMPTS) {
++		if (ret) {
++			dev_err(nor->dev, "JEDEC ID read failed for %s after %u attempts: %d\n",
++				info->name, attempt, ret);
++			return ERR_PTR(ret);
++		}
++		dev_err(nor->dev, "JEDEC ID mismatch for %s after %u attempts: got %*ph, expected %*ph\n",
++			info->name, attempt, info->id->len, id,
++			info->id->len, info->id->bytes);
++		return ERR_PTR(-ENODEV);
++	}
++
++	/* Compare raw ID bytes so aliases with the same ID remain valid. */
++	nor->id = devm_kmemdup(nor->dev, id, SPI_NOR_MAX_ID_LEN, GFP_KERNEL);
++	if (!nor->id)
++		return ERR_PTR(-ENOMEM);
++	if (nor->spimem)
++		memcpy(nor->spimem->device_id, id, SPI_NOR_MAX_ID_LEN);
++	if (attempt)
++		dev_warn(nor->dev, "JEDEC ID for %s verified after %u attempts\n",
++			 info->name, attempt + 1);
++
++	return info;
++}
++
+ static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
+ 						       const char *name)
+ {
+ 	const struct flash_info *info = NULL;
+ 
++	if (IS_ENABLED(CONFIG_MTD_SPI_NOR_VALIDATE_COMPAT)) {
++		info = spi_nor_validate_compat(nor);
++		if (info)
++			return info;
++	}
++
+ 	if (name)
+ 		info = spi_nor_match_name(nor, name);
+ 	/*
+-- 
+2.56.0
